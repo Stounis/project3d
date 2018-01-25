@@ -10,6 +10,7 @@ public class QLearning : MonoBehaviour {
 	// list of states 
 	// list of actions
 	// q table mapping actions to states
+	// list of rewards according to actions, given by the class
 
 
 	/*

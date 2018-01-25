@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class Rotation : MonoBehaviour {
 	Transform transform;
-	int rotateSpeed = 75;
+	int rotateSpeed = 100;
 	public float maxRotation = 15f;
 	public float rotation = 0;
 	bool rotating = false;
@@ -17,7 +17,8 @@ public class Rotation : MonoBehaviour {
 	}
 	
 	// Update is called once per frame
-	void Update () {
+	// not used!
+	void UpdateT () {
 		if (!rotating) {
 			float random = Random.Range (0.0f, 1.0f);
 			if (random < 0.35f) {
@@ -64,7 +65,42 @@ public class Rotation : MonoBehaviour {
 				}
 			}
 		}
-	}
+	} // end of Update
+
+
+	/*
+	 *  Updates every frame
+	 */
+	void Update(){
+
+		if (Input.GetKey (KeyCode.Alpha1)) // 1 on keyboard to rotate left
+			RotateLeft (); // method will be called by controller
+
+		if (Input.GetKey (KeyCode.Alpha2)) // 2 on keyboard to rotate right
+			RotateRight (); // method will be called by controller
+
+		if (lookLeft) {
+			if (rotation < -maxRotation) {
+				lookLeft = false;
+				rotating = false;
+				rotation = 0f;
+			} else {
+				rotateLeft ();
+				rotation -= 1f;
+			}
+		}
+
+		if (lookRight) {
+			if (rotation > maxRotation) {
+				lookRight = false;
+				rotating = false;
+				rotation = 0f;
+			} else {
+				rotateRight ();
+				rotation += 1f;
+			}
+		}
+	} // end of Update
 
 	void rotateLeft() {
 		transform.Rotate (Vector3.up, (-rotateSpeed) * Time.deltaTime); 
@@ -74,7 +110,32 @@ public class Rotation : MonoBehaviour {
 		transform.Rotate (Vector3.up, (rotateSpeed) * Time.deltaTime); // rotate right
 	}
 
+
+	/*
+	 * Might not be used
+	 */ 
 	void lookAtObject(GameObject enemy) {
 		transform.LookAt (enemy.transform);
+	}
+
+	/*
+	 * Accessed by the Controller to make the object rotate left
+	 */
+	public void RotateLeft(){
+		lookLeft = true;
+		lookRight = false;
+		rotation = 0f;
+		rotating = true;
+	}
+
+
+	/*
+	 * Accessed by the Controller to make the object rotate right
+	 */
+	public void RotateRight(){
+		lookLeft = false;
+		lookRight = true;
+		rotation = 0f;
+		rotating = true;
 	}
 }
