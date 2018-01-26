@@ -7,11 +7,25 @@ public class PredatorScript : Controller {
 
 	ArrayList eatPreyList = new ArrayList(); //List that holds all prey objects that are within the second collider
 
-	//NavMeshAgent agent;
+	// states and actions
+	enum State {Idle, Seek, Attack, Dead};
+	enum Action {None, RotateLeft, RotateRight, LookAtObject, Move, Stop, FollowObject, Eat, Idle, Seek, Attack};
+	State currentState;
+	Action currentAction;
+
+	//speed
+	public float SeekMoveSpeed = 4.5f;
+	public float AttackMoveSpeed = 6.5f;
+
+	//movement and direction
+	Vector3 movingDir;
+	bool moving = false;
+	float initialAngle;
 
 	//rotate variables
 	int rotateSpeed = 75;
 	bool spotted = false;
+	Rotation rotation;
 
 	// Field Of View Variables
 	float fowSpotedAngle = 30;
@@ -22,58 +36,55 @@ public class PredatorScript : Controller {
 	float fowTransitionRadius = 0.01f;
 
 	// Use this for initialization
-	/*void Start () {
+	void Start () {
 		rigidbody = GetComponent<Rigidbody> ();
-		viewCamera = Camera.main;
 		agent = GetComponent<NavMeshAgent> ();
-	}*/
+		rotation = GetComponent<Rotation> ();
+		currentState = State.Idle;
+		initialAngle = transform.rotation.y;
+	}
 	
 	// Update is called once per frame
 	void Update () {
-		if (alive) {
+		
+		switch(currentState){
+		case State.Idle:
+			rest (0.01f);
+			break;
+		case State.Seek:
+			consumeStamina (0.01f);
+			break;
+		case State.Attack:
+			consumeStamina (0.3f);
+			break;
+		}
 
-			// movement from keyboard
-			//velocity = new Vector3 (Input.GetAxisRaw ("Horizontal"), 0, Input.GetAxisRaw ("Vertical")).normalized * moveSpeed;
+		rotate ();
+		changeFieldOfView ();
 
-			/*// rotate from Q and E
-			if (Input.GetKey (KeyCode.Q)) {
-				transform.Rotate (Vector3.up, (-50) * Time.deltaTime); // rotate left
-			}
-			else if(Input.GetKey(KeyCode.E)){
-				transform.Rotate (Vector3.up, (50) * Time.deltaTime); // rotate right
-			} */
+		if (Input.GetKey(KeyCode.N)){
+			eat ();
+		}
 
-
-
-			rotate ();
-			changeFieldOfView ();
-			//eatPrey ();
-
-			if (Input.GetKey(KeyCode.N)){
-				eatPrey ();
-			}
-
-			// starved to death, rip
-			if (stamina < 0) {
-				alive = false;
-			}
-		}	
+		// starved to death, rip
+		if (hunger < 0) {
+			Dead ();
+		}
+		
 	} // end of Update
 
+	/*
+	 * Updates the Physics
+	 */
 	void FixedUpdate() {
-		if (alive) {
-			Vector3 stationary = new Vector3 (0, 0, 0);
-			// check if object moves
-			if (velocity != stationary) {	
-				stamina -= 0.01f * agent.speed;
-			} else {
-				stamina -= 0.01f;
-
-			}
-			//rigidbody.MovePosition (rigidbody.position + velocity * Time.fixedDeltaTime);
-			stamina -= 0.01f;
+		// reducing the speed according to the rotation of the object
+		if (moving) {
+			float reducedSpeed = moveSpeed - ((moveSpeed/2)*Mathf.Abs((initialAngle-transform.rotation.y)%180));
+			rigidbody.velocity = movingDir * reducedSpeed;
+		} else {
+			rigidbody.velocity = transform.forward * 0;
 		}
-	}
+	} // end of Fixed-Update
 
 	void rotate(){
 		spotted = false;
@@ -107,24 +118,162 @@ public class PredatorScript : Controller {
 		}
 	}
 
-	void eatPrey(){
+	void eat(){
 		if (eatPreyList.Count > 0) {
 			GameObject g = (GameObject)eatPreyList [0];
 			if (GetComponent<FieldOfView> ().visibleTargets.Count > 0) {
 				removePreyFromList (g);
 				if (g != null) {
-					stamina += 400;
+					hunger += 400;
 					GetComponent<FieldOfView> ().visibleTargets.Clear ();
 					Destroy (g);	
 				}
 			}
 		}
+	} // end of eat
+
+	/*
+	 * changes the moving to true
+	 */
+	void move(){
+		moving = true;
+		movingDir = transform.forward;
+		initialAngle = transform.rotation.y;
 	}
 
+	/*
+	 * changes the moving to false
+	 */
+	void stop(){
+		moving = false;
+	}
+
+	/*
+	 * Selects the next action
+	 */
+	void selectAction(Action action){
+		currentAction = action;
+		switch (currentAction) {
+		case Action.RotateLeft:
+			rotation.RotateLeft ();
+			break;
+		case Action.RotateRight:
+			rotation.RotateRight ();
+			break;
+		case Action.LookAtObject:
+			// rotation look at
+			break;
+		case Action.Move:
+			move ();
+			break;
+		case Action.Stop:
+			stop ();
+			break;
+		case Action.FollowObject:
+			//agent follow
+			break;
+		case Action.Idle:
+			Idle ();
+			break;
+		case Action.Seek:
+			Seek ();
+			break;
+		case Action.Attack:
+			Attack ();
+			break;
+		}
+	} // end of selectAction
+
+	/*
+	 * returns a boolean array with all the available actions of the object.
+	 * the actions are selected according to the object's state and other parameters.
+	 */
+	bool[] getAvailableActions(){
+		bool[] availableActions = new bool[11];
+		Action[] chooseActions = null;
+		switch (currentState) {
+		case State.Idle:
+			chooseActions = new Action[]{
+				Action.RotateLeft, 
+				Action.RotateRight, 
+				Action.Attack,
+				Action.Seek
+			};
+			break;
+		case State.Seek:
+			chooseActions = new Action[] {
+				Action.RotateLeft,
+				Action.RotateRight,
+				Action.LookAtObject,
+				Action.Move,
+				Action.Stop,
+				Action.Attack,
+				Action.Idle
+			};
+			break;
+		case State.Attack:
+			chooseActions = new Action[]{
+				Action.RotateLeft, 
+				Action.RotateRight, 
+				Action.LookAtObject, 
+				Action.Move, 
+				Action.Stop, 
+				Action.Seek, 
+				Action.Idle
+			};
+			if (eatPreyList.Count > 0)
+				availableActions [(int)Action.Eat] = true;
+			break;
+		case State.Dead:
+			chooseActions = null;
+			break;
+		}
+		if (chooseActions != null) {
+			for (int i = 0; i < chooseActions.Length; i++) {
+				availableActions [(int)chooseActions [i]]=true;
+			}
+		}
+		return availableActions;
+	} // end of getAvailableActions 
+
+	/*
+	 * changes the state to Idle
+	 */
+	void Idle(){
+		currentState = State.Idle;
+	}
+
+	/*
+	 * changes the state to Seek
+	 */
+	void Seek(){
+		currentState = State.Seek;
+	}
+
+	/*
+	 * changes the state to Attack
+	 */
+	void Attack(){
+		currentState = State.Attack;
+	}
+
+	/*
+	 * changes the state to Dead
+	 */
+	void Dead(){
+		currentState = State.Dead;
+	}
+
+	/*
+	 * adds prey to the list when the prey collides with the secondary game object
+	 */
 	public void addPreyToList(GameObject g){
 		eatPreyList.Add (g);
 	}
 
+	/*
+	 * removes prey from the list when it exits the collision
+	 */
 	public void removePreyFromList(GameObject g){
 		for (int i = 0; i < eatPreyList.Count; i++) {
 			if (eatPreyList [i] == g) {

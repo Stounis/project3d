@@ -7,12 +7,12 @@ public class Controller : MonoBehaviour {
 	public float moveSpeed = 6;
 	public float weight = 50;
 	public float stamina = 100; // used for walk, run etc
-	public float hunger = 0;
+	public float hunger = 50;
 	public string id;
 
 	protected bool alive = true;
 
-	public ArrayList eadibleList = new ArrayList();
+	public ArrayList eadibleList = new ArrayList(); // list that holds all the eadible objects that the controller collides with
 
 	protected Rigidbody rigidbody;
 	protected Camera viewCamera;
@@ -34,15 +34,7 @@ public class Controller : MonoBehaviour {
 	}
 		
 	void Update () {
-		/*if (alive) {
-			Vector3 mousePos = viewCamera.ScreenToWorldPoint (new Vector3 (Input.mousePosition.x, Input.mousePosition.y, viewCamera.transform.position.y));
-			transform.LookAt (mousePos + Vector3.up * transform.position.y);
-			velocity = new Vector3 (Input.GetAxisRaw ("Horizontal"), 0, Input.GetAxisRaw ("Vertical")).normalized * moveSpeed;
-
-			if (stamina < 0) {
-				alive = false;
-			}
-		}*/	
+		
 	}
 
 	void FixedUpdate() {
@@ -74,35 +66,46 @@ public class Controller : MonoBehaviour {
 				GetComponent<FieldOfView>().viewRadius -= fowTransitionRadius;
 		} */
 	}
-
-	void movement(){
-		//velocity = new Vector3 (Input.GetAxisRaw ("Horizontal"), 0, Input.GetAxisRaw ("Vertical")).normalized * moveSpeed;
-	}
-
-	void rotation(){
-		Vector3 mousePos = viewCamera.ScreenToWorldPoint(new Vector3(Input.mousePosition.x, Input.mousePosition.y, viewCamera.transform.position.y));
-	}
-
+		
 	public string getId(){
 		return id;
 	}
 
 
+	/*
+	 * controller rests to regenerate stamina
+	 */ 
+	protected void rest(float s){
+		if (stamina + s <= 100) {
+			stamina += s;
+		}
+	}
 
+	/*
+	 * controller consumes stamina s from its stamina level
+	 */
+	protected void consumeStamina(float s){
+		if (stamina - s > 0) {
+			stamina -= s;
+		}
+	}
+
+	/*
+	 * adds the eadible object that collided with the controller in the list
+	 */
 	public void addEadibleObject(GameObject g){
 		eadibleList.Add (g);
 	}
 
+	/*
+	 * removes the eadible object when the controller exits the collision with it
+	 */
 	public void removeEadibleObject(GameObject g){
 		for (int i = 0; i < eadibleList.Count; i++) {
 			if (g == eadibleList [i]) {
 				eadibleList.RemoveAt(i);
 			}
 		}
-	}
-		
-	public void printTest(){
-		Debug.Log ("Parent test");
-	}
-		
-}
+	} // end of removeEadibleObject
+
+} // end of Controller Class

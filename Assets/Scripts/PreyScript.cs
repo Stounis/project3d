@@ -6,10 +6,14 @@ using UnityEngine.AI;
 public class PreyScript : Controller {
 
 	//states and actions
-	enum State {Idle, Seek, Flee, Dead};
-	enum Action {RotateLeft, RotateRight, LookAtObject, Move, Stop, FollowObject, Eat, Idle, Seek, Flee}; // possible actions. Maybe NoAction as another option?
+	enum State {Idle, Seek, Flee, Dead}; // possible states
+	enum Action {None, RotateLeft, RotateRight, LookAtObject, Move, Stop, FollowObject, Eat, Idle, Seek, Flee}; // possible actions
 	State currentState;
 	Action currentAction;
+
+	//speed
+	public float FleeMovepSpeed = 6;
+	public float SeekMoveSpeed = 4;
 
 	bool flee = false;
 	Vector3 destination;
@@ -25,99 +29,108 @@ public class PreyScript : Controller {
 	// init method
 	void Start () {
 		rigidbody = GetComponent<Rigidbody> ();
-		//viewCamera = Camera.main;
 		agent = GetComponent<NavMeshAgent> ();
 		initialAngle = transform.rotation.y; // the object only rotates on the y axis
-		currentState = State.Idle;
 		rotation = GetComponent<Rotation> ();
+		currentState = State.Idle;
 	} // end of Start
 
-	void Update(){
-		if (alive) {
-			agent.enabled = true;
-			if (!flee) {
-				agent.destination = transform.position;
-				agent.enabled = false;
-				//Vector3 mousePos = viewCamera.ScreenToWorldPoint (new Vector3 (Input.mousePosition.x, Input.mousePosition.y, viewCamera.transform.position.y));
-				//transform.LookAt (mousePos + Vector3.up * transform.position.y);
-				//velocity = new Vector3 (Input.GetAxisRaw ("Horizontal"), 0, Input.GetAxisRaw ("Vertical")).normalized * moveSpeed;
-
-				switch (currentState) {
-				case State.Idle:
-					rest (0.1f);
-					break;
-				case State.Seek:
-					consumeStamina (0.01f);
-					break;
-				case State.Flee:
-					consumeStamina (0.1f);
-					break;
-				}
-
-				bool [] availableActions = getAvailableActions(); // get the available actions
-
-				if (Input.GetKey (KeyCode.E) && availableActions[(int)Action.Eat]) {
-					Debug.Log ("Eating!");
-					eat ();
-				}
-
-				if (Input.GetKey (KeyCode.F) && availableActions[(int)Action.Move]) {
-					//rigidbody.velocity = transform.forward * moveSpeed;
-					move();
-				}
-
-				if (Input.GetKey (KeyCode.G) && availableActions[(int)Action.Stop]) {
-					//rigidbody.velocity = transform.forward * 0;
-					stop();
-				}
-
-				//switch state test
-				if (Input.GetKey (KeyCode.Alpha3) && availableActions[(int)Action.Idle]) // Idle
-					Idle();
-				if (Input.GetKey (KeyCode.Alpha4) && availableActions[(int)Action.Seek]) // Seek
-					Seek ();
-				if (Input.GetKey (KeyCode.Alpha5) && availableActions[(int)Action.Flee]) // Flee
-					Flee ();
-
-
-				// reducing the speed according to the rotation of the object
-				if (moving) {
-					reducedSpeed = moveSpeed - ((moveSpeed/2)*Mathf.Abs((initialAngle-transform.rotation.y)%180));
-					rigidbody.velocity = movingDir * reducedSpeed;
-				} else {
-					rigidbody.velocity = transform.forward * 0;
-				}
-					
-				if (stamina < 0) {
-					alive = false;
-				}
-			} else { // agent stuff
-				if (Vector3.Distance(transform.position, destination) <= 1f) {
-					flee = false;
-					agent.destination = transform.position;
-				}
-			}
-		}    
-	}
-
 	/*
-	 * prey rests to regenerate stamina
-	 */ 
-	void rest(float s){
-		if (stamina + s <= 100) {
-			stamina += s;
-		}
-	}
-
-	/*
-	 * prey consumes stamina s from its stamina level
+	 * Updates every frame
 	 */
-	void consumeStamina(float s){
-		if (stamina - s > 0) {
-			stamina -= s;
-		}
-	}
+	void Update(){
+		
+		agent.enabled = true;
+		if (!flee) {
+			agent.destination = transform.position;
+			agent.enabled = false;
+			switch (currentState) {
+			case State.Idle:
+				rest (0.1f);
+				stop ();
+				break;
+			case State.Seek:
+				consumeStamina (0.01f);
+				moveSpeed = SeekMoveSpeed;
+				break;
+			case State.Flee:
+				consumeStamina (0.1f);
+				moveSpeed = FleeMovepSpeed;
+				break;
+			}
+			hunger -= 0.01f;
 
+			bool[] availableActions = getAvailableActions (); // get the available actions
+			Action action = Action.None; // testing actions with keyboard
+
+			////// ACTIONS CONTROLLED BY THE KEYBOARD ////// 
+			if (Input.GetKey (KeyCode.E) && availableActions [(int)Action.Eat]) {
+				Debug.Log ("Eating!");
+				//eat ();
+				action = Action.Eat;
+			}
+
+			if (Input.GetKey (KeyCode.F) && availableActions [(int)Action.Move]) {
+				//rigidbody.velocity = transform.forward * moveSpeed;
+				//move();
+				action = Action.Move;
+			}
+			if (Input.GetKey (KeyCode.G) && availableActions [(int)Action.Stop]) {
+				//rigidbody.velocity = transform.forward * 0;
+				//stop();
+				action = Action.Stop;
+			}
+
+			//switch state test
+			if (Input.GetKey (KeyCode.Alpha3) && availableActions [(int)Action.Idle]){ // Idle
+				//Idle ();
+				action = Action.Idle;
+			}
+			if (Input.GetKey (KeyCode.Alpha4) && availableActions [(int)Action.Seek]) { // Seek
+				//Seek ();
+				action = Action.Seek;
+			}
+			if (Input.GetKey (KeyCode.Alpha5) && availableActions[(int)Action.Flee]){ // Flee
+				//Flee ();
+				action = Action.Flee;
+			}
+
+			if (Input.GetKey (KeyCode.Alpha1) && availableActions[(int)Action.RotateLeft]){ // 1 on keyboard to rotate left
+				//rotation.RotateLeft (); // method will be called by controller
+				action = Action.RotateLeft;
+			}
+			if (Input.GetKey (KeyCode.Alpha2) && availableActions[(int)Action.RotateRight]){ // 2 on keyboard to rotate right
+				//rotation.RotateRight (); // method will be called by controller
+				action = Action.RotateRight;
+			}
+
+			selectAction (action); 
+
+			// reducing the speed according to the rotation of the object
+			if (moving) {
+				reducedSpeed = moveSpeed - ((moveSpeed/2)*Mathf.Abs((initialAngle-transform.rotation.y)%180));
+				rigidbody.velocity = movingDir * reducedSpeed;
+			} else {
+				rigidbody.velocity = transform.forward * 0;
+			}
+				
+			if (hunger < 0) {
+				Dead ();
+			}
+
+		} else { // agent stuff
+			if (Vector3.Distance(transform.position, destination) <= 1f) {
+				flee = false;
+				agent.destination = transform.position;
+			}
+		}		  
+	} // end of Update
+
+	/*
+	 * Updates Physics 
+	 */
+	void FixedUpdate(){
+	} // end of Fixed-Update
 
 	/*
 	 *  NOT USED. rotation moved to different class
@@ -134,19 +147,6 @@ public class PreyScript : Controller {
 			transform.LookAt (destination);
 		}
 	} // end of rotate
-
-	void FixedUpdate(){
-		 /*if (alive) {
-			Vector3 stationary = new Vector3 (0, 0, 0);
-			if (velocity != stationary) {	
-				stamina -= 0.01f * moveSpeed;
-			} else {
-				stamina -= 0.01f;
-			}
-			rigidbody.MovePosition (rigidbody.position + velocity * Time.fixedDeltaTime);
-			stamina -= 0.01f;
-		} */
-	}
 		
 	/*
 	 * Action Move towards the movingDir (direction)
@@ -173,16 +173,55 @@ public class PreyScript : Controller {
 			GameObject e = (GameObject)eadibleList [0];
 			eadibleList.RemoveAt (0);
 			Destroy (e);
-			stamina += 30;
+			hunger += 30;
 		}
-	}
+	} // end of eat
+
+	/*
+	 * Selects the next action
+	 */
+	void selectAction(Action action){
+		currentAction = action;
+		switch (currentAction) {
+		case Action.RotateLeft:
+			rotation.RotateLeft ();
+			break;
+		case Action.RotateRight:
+			rotation.RotateRight ();
+			break;
+		case Action.LookAtObject:
+			// rotation look at
+			break;
+		case Action.Move:
+			move ();
+			break;
+		case Action.Stop:
+			stop ();
+			break;
+		case Action.FollowObject:
+			//agent follow
+			break;
+		case Action.Eat:
+			eat ();
+			break;
+		case Action.Idle:
+			Idle ();
+			break;
+		case Action.Seek:
+			Seek ();
+			break;
+		case Action.Flee:
+			Flee ();
+			break;
+		}
+	} // end of selectAction
 
 	/*
 	 * returns a boolean array with all the available actions of the object.
 	 * the actions are selected according to the object's state and other parameters.
 	 */
 	bool[] getAvailableActions(){
-		bool[] availableActions = new bool[10];
+		bool[] availableActions = new bool[11];
 		Action[] chooseActions = null;
 		switch (currentState) {
 		case State.Idle:
@@ -261,4 +300,5 @@ public class PreyScript : Controller {
 	void Flee(){
 		currentState = State.Flee;
 	}
-}
+
+} // end of PreyScript Class
