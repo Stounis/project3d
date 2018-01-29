@@ -19,7 +19,7 @@ public class PreyScript : Controller {
 	Vector3 destination;
 
 	Vector3 movingDir;
-	bool moving = false;
+	public bool moving = false;
 
 	// rotation reduction speed
 	float initialAngle;

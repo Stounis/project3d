@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine.AI;
 
 public class Controller : MonoBehaviour {
@@ -13,6 +14,7 @@ public class Controller : MonoBehaviour {
 	protected bool alive = true;
 
 	public ArrayList eadibleList = new ArrayList(); // list that holds all the eadible objects that the controller collides with
+	public List<Vector3> soundList =  new List<Vector3>(); // holds vector3 points when the sound capsule collides with the controller
 
 	protected Rigidbody rigidbody;
 	protected Camera viewCamera;
@@ -28,9 +30,9 @@ public class Controller : MonoBehaviour {
 	float fowTransitionRadius = 0.01f;*/
 
 	void Start () {
-		rigidbody = GetComponent<Rigidbody> ();
+		//rigidbody = GetComponent<Rigidbody> ();
 		//viewCamera = Camera.main;
-		agent = GetComponent<NavMeshAgent> ();
+		//agent = GetComponent<NavMeshAgent> ();
 	}
 		
 	void Update () {
@@ -107,5 +109,11 @@ public class Controller : MonoBehaviour {
 			}
 		}
 	} // end of removeEadibleObject
+
+	public void addSoundObject(Transform soundOrigin) {
+		if (soundList.Count > 0)
+			soundList.RemoveAt (0);
+		soundList.Add (soundOrigin.transform.position);
+	}
 
 } // end of Controller Class

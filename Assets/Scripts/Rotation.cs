@@ -56,8 +56,8 @@ public class Rotation : MonoBehaviour {
 	/*
 	 * Might not be used
 	 */ 
-	void lookAtObject(GameObject enemy) {
-		transform.LookAt (enemy.transform);
+	public void lookAtObject(Vector3 origin) {
+		transform.LookAt (origin);
 	}
 
 	/*

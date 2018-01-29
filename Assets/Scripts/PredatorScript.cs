@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
+using UnityEditor;
 
 public class PredatorScript : Controller {
 
@@ -9,7 +10,9 @@ public class PredatorScript : Controller {
 
 	// states and actions
 	enum State {Idle, Seek, Attack, Dead};
+	int stateSize = System.Enum.GetValues(typeof(State)).Length;
 	enum Action {None, RotateLeft, RotateRight, LookAtObject, Move, Stop, FollowObject, Eat, Idle, Seek, Attack};
+	int actionSize = System.Enum.GetValues(typeof(Action)).Length;
 	State currentState;
 	Action currentAction;
 
@@ -35,6 +38,9 @@ public class PredatorScript : Controller {
 	float fowTransitionAngle = 0.3f;
 	float fowTransitionRadius = 0.01f;
 
+	//Agent
+	Vector3 destination;
+
 	// Use this for initialization
 	void Start () {
 		rigidbody = GetComponent<Rigidbody> ();
@@ -46,7 +52,12 @@ public class PredatorScript : Controller {
 	
 	// Update is called once per frame
 	void Update () {
-		
+
+		if (agent.enabled && Vector3.Distance(transform.position, destination) <= 1f) {
+			agent.destination = transform.position;
+			agent.enabled = false;
+		}
+
 		switch(currentState){
 		case State.Idle:
 			rest (0.01f);
@@ -59,11 +70,15 @@ public class PredatorScript : Controller {
 			break;
 		}
 
-		rotate ();
+		//rotate ();
 		changeFieldOfView ();
 
 		if (Input.GetKey(KeyCode.N)){
 			eat ();
+		}
+
+		if(Input.GetKey(KeyCode.M)){
+			lookAtSound ();			
 		}
 
 		// starved to death, rip
@@ -97,7 +112,7 @@ public class PredatorScript : Controller {
 			if (this.GetComponent<FieldOfView> ().visibleTargets [0].transform != null) {
 				spotted = true;
 				transform.LookAt (this.GetComponent<FieldOfView> ().visibleTargets [0].transform);
-				agent.SetDestination (this.GetComponent<FieldOfView>().visibleTargets[0].transform.position);
+				//agent.SetDestination (this.GetComponent<FieldOfView>().visibleTargets[0].transform.position);
 			}
 		}
 	}
@@ -146,6 +161,23 @@ public class PredatorScript : Controller {
 	 */
 	void stop(){
 		moving = false;
+		if (agent.enabled) {
+			agent.SetDestination (transform.position);
+			agent.enabled = false;
+		}
+	}
+
+	/*
+	 * Look At sound Source
+	 */
+	void lookAtSound(){
+		if (soundList.Count > 0) {
+			Vector3 origin = soundList[0];
+			rotation.lookAtObject(origin);
+			agent.enabled = true;
+			destination = origin;
+			agent.SetDestination (origin);
+		}
 	}
 
 	/*
@@ -161,7 +193,7 @@ public class PredatorScript : Controller {
 			rotation.RotateRight ();
 			break;
 		case Action.LookAtObject:
-			// rotation look at
+			lookAtSound ();
 			break;
 		case Action.Move:
 			move ();
@@ -189,7 +221,7 @@ public class PredatorScript : Controller {
 	 * the actions are selected according to the object's state and other parameters.
 	 */
 	bool[] getAvailableActions(){
-		bool[] availableActions = new bool[11];
+		bool[] availableActions = new bool[actionSize];
 		Action[] chooseActions = null;
 		switch (currentState) {
 		case State.Idle:
@@ -228,6 +260,10 @@ public class PredatorScript : Controller {
 			chooseActions = null;
 			break;
 		}
+
+		if (soundList.Count > 0) // check if there is a sound origin that the o can check out
+			availableActions [(int)Action.LookAtObject] = true;
+		
 		if (chooseActions != null) {
 			for (int i = 0; i < chooseActions.Length; i++) {
 				availableActions [(int)chooseActions [i]]=true;
