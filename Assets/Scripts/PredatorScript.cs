@@ -9,10 +9,10 @@ public class PredatorScript : Controller {
 	ArrayList eatPreyList = new ArrayList(); //List that holds all prey objects that are within the second collider
 
 	// states and actions
-	enum State {Idle, Seek, Attack, Dead};
-	int stateSize = System.Enum.GetValues(typeof(State)).Length;
-	enum Action {None, RotateLeft, RotateRight, LookAtObject, Move, Stop, FollowObject, Eat, Idle, Seek, Attack};
-	int actionSize = System.Enum.GetValues(typeof(Action)).Length;
+	public enum State {Idle, Seek, Attack, Dead};
+	public int stateSize = System.Enum.GetValues(typeof(State)).Length;
+	public enum Action {None, RotateLeft, RotateRight, LookAtObject, Move, Stop, FollowObject, Eat, Idle, Seek, Attack};
+	public int actionSize = System.Enum.GetValues(typeof(Action)).Length;
 	State currentState;
 	Action currentAction;
 
@@ -220,10 +220,10 @@ public class PredatorScript : Controller {
 	 * returns a boolean array with all the available actions of the object.
 	 * the actions are selected according to the object's state and other parameters.
 	 */
-	bool[] getAvailableActions(){
+	public bool[] getAvailableActions(State state){
 		bool[] availableActions = new bool[actionSize];
 		Action[] chooseActions = null;
-		switch (currentState) {
+		switch (state) {
 		case State.Idle:
 			chooseActions = new Action[]{
 				Action.RotateLeft, 
@@ -261,7 +261,7 @@ public class PredatorScript : Controller {
 			break;
 		}
 
-		if (soundList.Count > 0) // check if there is a sound origin that the o can check out
+		if (soundList.Count > 0 && currentState!=State.Dead) // check if there is a sound origin that the o can check out
 			availableActions [(int)Action.LookAtObject] = true;
 		
 		if (chooseActions != null) {
