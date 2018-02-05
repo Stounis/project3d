@@ -5,7 +5,7 @@ using UnityEngine;
 public class Sound : MonoBehaviour {
 
 	CapsuleCollider collider;
-
+	public bool silent = false;
 	// Use this for initialization
 	void Start () {
 		collider = GetComponent<CapsuleCollider> ();
@@ -17,36 +17,17 @@ public class Sound : MonoBehaviour {
 	 * according to its movement speed
 	 */
 	void Update () {
-		bool moving = GetComponentInParent<PreyScript> ().moving;
-		float speed = GetComponentInParent<PreyScript> ().reducedSpeed;
-		if (moving) {
+		transform.rotation = this.GetComponentInParent<Transform> ().rotation;
+
+		bool moving = GetComponentInParent<Controller> ().moving;
+		float speed = GetComponentInParent<Controller> ().reducedSpeed;
+		if (moving && speed>2) {
 			collider.radius = speed;
+			silent = false;
 		} else {
-			collider.radius = 0.5f;
+			collider.radius = 0.0f;
+			silent = true;
 		}
 	} // end of Update
-
-	/*
-	 * Adds itself to the collider's soundlist when it enters the collision 
-	 */
-	void OnTriggerEnter(Collider other){
-		if (other.gameObject.tag == "Predator" || other.gameObject.tag=="Prey") {
-			Controller c = other.gameObject.GetComponent<Controller> ();
-			c.addSoundObject (this.gameObject.transform);
-			Debug.Log ("SOUND");
-		}
-	} // end of OnTriggerEnter
-
-
-	/*
-	 * Updates the position of the sound origin in the controller SoundList
-	 * while it still colides with the object
-	 */
-	void OnTriggerStay(Collider other){
-		if (other.gameObject.tag == "Predator" || other.gameObject.tag=="Prey") {
-			Controller c = other.gameObject.GetComponent<Controller> ();
-			c.addSoundObject (this.gameObject.transform);
-		}
-	} // end of OnTriggerStay
 
 } // end of Sound class

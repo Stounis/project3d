@@ -7,7 +7,9 @@ public class PreyScript : Controller {
 
 	//states and actions
 	enum State {Idle, Seek, Flee, Dead}; // possible states
-	enum Action {None, RotateLeft, RotateRight, LookAtObject, Move, Stop, FollowObject, Eat, Idle, Seek, Flee}; // possible actions
+	public int stateSize = System.Enum.GetValues(typeof(State)).Length;
+	enum Action {None, RotateLeft, RotateRight, LookAtObject, MoveForward, MoveBackwards, Stop, FollowObject, Eat, Idle, Seek, Flee}; // possible actions
+	public int actionSize = System.Enum.GetValues(typeof(Action)).Length;
 	State currentState;
 	Action currentAction;
 
@@ -15,15 +17,11 @@ public class PreyScript : Controller {
 	public float FleeMovepSpeed = 6;
 	public float SeekMoveSpeed = 4;
 
-	bool flee = false;
-	Vector3 destination;
-
-	Vector3 movingDir;
-	public bool moving = false;
+	Vector3 destination; // agent destination
+	Vector3 movingDir; // moving direction
 
 	// rotation reduction speed
 	float initialAngle;
-	public float reducedSpeed; // testing
 	Rotation rotation; // class which controls the rotation of the object
 
 	// init method
@@ -39,130 +37,164 @@ public class PreyScript : Controller {
 	 * Updates every frame
 	 */
 	void Update(){
-		
-		agent.enabled = true;
-		if (!flee) {
-			agent.destination = transform.position;
-			agent.enabled = false;
-			switch (currentState) {
-			case State.Idle:
-				rest (0.1f);
-				stop ();
-				break;
-			case State.Seek:
-				consumeStamina (0.01f);
-				moveSpeed = SeekMoveSpeed;
-				break;
-			case State.Flee:
-				consumeStamina (0.1f);
-				moveSpeed = FleeMovepSpeed;
-				break;
-			}
-			hunger -= 0.01f;
+		switch (currentState) {
+		case State.Idle:
+			rest (0.1f);
+			stop ();
+			break;
+		case State.Seek:
+			consumeStamina (0.01f);
+			moveSpeed = SeekMoveSpeed;
+			break;
+		case State.Flee:
+			consumeStamina (0.1f);
+			moveSpeed = FleeMovepSpeed;
+			break;
+		}
+		hunger -= 0.01f;
 
-			bool[] availableActions = getAvailableActions (); // get the available actions
-			Action action = Action.None; // testing actions with keyboard
+		bool[] availableActions = getAvailableActions (); // get the available actions
+		Action action = Action.None; // testing actions with keyboard
 
-			////// ACTIONS CONTROLLED BY THE KEYBOARD ////// 
-			if (Input.GetKey (KeyCode.E) && availableActions [(int)Action.Eat]) {
-				Debug.Log ("Eating!");
-				//eat ();
-				action = Action.Eat;
-			}
+		////// ACTIONS CONTROLLED BY THE KEYBOARD ////// 
+		if (Input.GetKey (KeyCode.E) && availableActions [(int)Action.Eat]) {
+			Debug.Log ("Prey Eating!");
+			//eat ();
+			action = Action.Eat;
+		}
 
-			if (Input.GetKey (KeyCode.F) && availableActions [(int)Action.Move]) {
-				//rigidbody.velocity = transform.forward * moveSpeed;
-				//move();
-				action = Action.Move;
-			}
-			if (Input.GetKey (KeyCode.G) && availableActions [(int)Action.Stop]) {
-				//rigidbody.velocity = transform.forward * 0;
-				//stop();
-				action = Action.Stop;
-			}
+		if (Input.GetKey (KeyCode.A) && availableActions [(int)Action.MoveForward]) {
+			//rigidbody.velocity = transform.forward * moveSpeed;
+			//move();
+			action = Action.MoveForward;
+		}
+		if (Input.GetKey (KeyCode.S) && availableActions [(int)Action.MoveBackwards]) {
+			action = Action.MoveBackwards;
+		}
+		if (Input.GetKey (KeyCode.Z) && availableActions [(int)Action.FollowObject]) {
+			action = Action.FollowObject;
+		}
+		if (Input.GetKey (KeyCode.D) && availableActions [(int)Action.Stop]) {
+			//rigidbody.velocity = transform.forward * 0;
+			//stop();
+			action = Action.Stop;
+		}
+		if (Input.GetKey (KeyCode.X) && availableActions [(int)Action.LookAtObject]) {
+			action = Action.LookAtObject;
+		}
 
-			//switch state test
-			if (Input.GetKey (KeyCode.Alpha3) && availableActions [(int)Action.Idle]){ // Idle
-				//Idle ();
-				action = Action.Idle;
-			}
-			if (Input.GetKey (KeyCode.Alpha4) && availableActions [(int)Action.Seek]) { // Seek
-				//Seek ();
-				action = Action.Seek;
-			}
-			if (Input.GetKey (KeyCode.Alpha5) && availableActions[(int)Action.Flee]){ // Flee
-				//Flee ();
-				action = Action.Flee;
-			}
+		//switch state test
+		if (Input.GetKey (KeyCode.Alpha1) && availableActions [(int)Action.Idle]){ // Idle
+			//Idle ();
+			action = Action.Idle;
+		}
+		if (Input.GetKey (KeyCode.Alpha2) && availableActions [(int)Action.Seek]) { // Seek
+			//Seek ();
+			action = Action.Seek;
+		}
+		if (Input.GetKey (KeyCode.Alpha3) && availableActions[(int)Action.Flee]){ // Flee
+			//Flee ();
+			action = Action.Flee;
+		}
 
-			if (Input.GetKey (KeyCode.Alpha1) && availableActions[(int)Action.RotateLeft]){ // 1 on keyboard to rotate left
-				//rotation.RotateLeft (); // method will be called by controller
-				action = Action.RotateLeft;
-			}
-			if (Input.GetKey (KeyCode.Alpha2) && availableActions[(int)Action.RotateRight]){ // 2 on keyboard to rotate right
-				//rotation.RotateRight (); // method will be called by controller
-				action = Action.RotateRight;
-			}
+		if (Input.GetKey (KeyCode.Q) && availableActions[(int)Action.RotateLeft]){ // 1 on keyboard to rotate left
+			//rotation.RotateLeft (); // method will be called by controller
+			action = Action.RotateLeft;
+		}
+		if (Input.GetKey (KeyCode.W) && availableActions[(int)Action.RotateRight]){ // 2 on keyboard to rotate right
+			//rotation.RotateRight (); // method will be called by controller
+			action = Action.RotateRight;
+		}
 
-			selectAction (action); 
+		selectAction (action); 
 
-			// reducing the speed according to the rotation of the object
-			if (moving) {
-				reducedSpeed = moveSpeed - ((moveSpeed/2)*Mathf.Abs((initialAngle-transform.rotation.y)%180));
-				rigidbody.velocity = movingDir * reducedSpeed;
-			} else {
-				rigidbody.velocity = transform.forward * 0;
-			}
-				
-			if (hunger < 0) {
-				Dead ();
-			}
+		if (stamina < 25) {
+			moveSpeed = 2f;
+		}
 
-		} else { // agent stuff
-			if (Vector3.Distance(transform.position, destination) <= 1f) {
-				flee = false;
-				agent.destination = transform.position;
-			}
-		}		  
+		if (hunger < 0) {
+			Dead ();
+		}			
 	} // end of Update
 
 	/*
 	 * Updates Physics 
 	 */
 	void FixedUpdate(){
-	} // end of Fixed-Update
-
-	/*
-	 *  NOT USED. rotation moved to different class
-	 */
-	void rotate(){
-		if (GetComponent<FieldOfView>().visibleTargets.Count>0){
-			flee = true;
-			Transform target = (Transform)GetComponent<FieldOfView> ().visibleTargets [0];
-			float distance = Vector2.Distance (new Vector2(transform.position.x, transform.position.z), new Vector2(target.position.x, target.position.z));
-			float x = transform.position.x + (transform.position.x - target.position.x);
-			float z = transform.position.z + (transform.position.z - target.position.z);
-			destination = new Vector3 (x, transform.position.y, z);
-			agent.SetDestination (destination);
-			transform.LookAt (destination);
+		// reducing the speed according to the rotation of the object
+		if (agent.enabled) {
+			if (agent.enabled && Vector3.Distance(transform.position, destination) <= 1f) {
+				agent.destination = transform.position;
+				agent.enabled = false;
+			}
+		} else {
+			if (moving) {
+				reducedSpeed = moveSpeed - ((moveSpeed / 2) * Mathf.Abs ((initialAngle - transform.rotation.y) % 180));
+				rigidbody.velocity = movingDir * reducedSpeed;
+			} else {
+				rigidbody.velocity = transform.forward * 0;
+			}
 		}
-	} // end of rotate
+	} // end of Fixed-Update
 		
+	/*
+	 * Look At sound Source
+	 */
+	void lookAtSound(){
+		/*if (soundList.Count > 0) {
+			Vector3 origin = soundList[0];
+			rotation.lookAtObject(origin);
+		} */
+
+		//testing
+		if(GetComponent<FieldOfView>().visibleEadibles.Count>0){
+			Vector3 eadiblePosition = GetComponent<FieldOfView> ().visibleEadibles [0].position;
+			rotation.lookAtObject (eadiblePosition);
+		}
+	}
+
 	/*
 	 * Action Move towards the movingDir (direction)
 	 * initialAngle is to reduce the speed according to how much the rotation of the object has altered during that initial move action
 	 */ 
-	void move(){
-		moving = true;
+	void moveForward(){
+		agent.enabled = false;
 		movingDir = transform.forward;
 		initialAngle = transform.rotation.y;
+		moving = true;
 	}
 
+	/*
+	 * Action MoveBack
+	 */
+	void moveBackward(){
+		agent.enabled = false;
+		movingDir = -transform.forward;
+		initialAngle = Quaternion.Inverse(transform.rotation).y;
+		moving = true;
+	}
+
+	/*
+	 * move towards an eadible object
+	 */
+	void moveToEadible(){
+		stop ();
+		agent.enabled = true;
+		if (GetComponent<FieldOfView>().visibleEadibles.Count > 0) {
+			Transform eadible = (Transform)GetComponent<FieldOfView>().visibleEadibles [0];
+			Vector3 eadiblePosition = eadible.position;
+			agent.SetDestination (eadiblePosition);
+			destination = eadiblePosition;
+		}
+	}
+	              
 	/*
 	 * Action Stop. stops the movement of the object
 	 */
 	void stop(){
+		agent.enabled = false;
 		moving = false;
+		rigidbody.velocity = transform.forward * 0;
 	}
 
 	/*
@@ -190,16 +222,19 @@ public class PreyScript : Controller {
 			rotation.RotateRight ();
 			break;
 		case Action.LookAtObject:
-			// rotation look at
+			lookAtSound ();
 			break;
-		case Action.Move:
-			move ();
+		case Action.MoveForward:
+			moveForward ();
+			break;
+		case Action.MoveBackwards:
+			moveBackward ();
 			break;
 		case Action.Stop:
 			stop ();
 			break;
 		case Action.FollowObject:
-			//agent follow
+			moveToEadible ();
 			break;
 		case Action.Eat:
 			eat ();
@@ -221,7 +256,7 @@ public class PreyScript : Controller {
 	 * the actions are selected according to the object's state and other parameters.
 	 */
 	bool[] getAvailableActions(){
-		bool[] availableActions = new bool[11];
+		bool[] availableActions = new bool[actionSize];
 		Action[] chooseActions = null;
 		switch (currentState) {
 		case State.Idle:
@@ -237,20 +272,24 @@ public class PreyScript : Controller {
 				Action.RotateLeft,
 				Action.RotateRight,
 				Action.LookAtObject,
-				Action.Move,
+				Action.MoveForward,
+				Action.MoveBackwards,
 				Action.Stop,
 				Action.Flee,
 				Action.Idle
 			};
-			if (eadibleList.Count > 0 && !moving)
+			if (eadibleList.Count > 0 && !moving) // eat rule
 				availableActions [(int)Action.Eat] = true;
+			if (GetComponent<FieldOfView>().visibleEadibles.Count > 0) // move towards object rule
+				availableActions [(int)Action.FollowObject] = true;
 			break;
 		case State.Flee:
 			chooseActions = new Action[]{
 				Action.RotateLeft, 
 				Action.RotateRight, 
 				Action.LookAtObject, 
-				Action.Move, 
+				Action.MoveForward, 
+				Action.MoveBackwards,
 				Action.Stop, 
 				Action.Seek, 
 				Action.Idle
@@ -259,6 +298,9 @@ public class PreyScript : Controller {
 		case State.Dead:
 			chooseActions = null;
 			break;
+		}
+		if (GetComponent<FieldOfView>().visibleEadibles.Count>0){ // test, replace eadible with sound source
+			availableActions [(int)Action.LookAtObject] = true;
 		}
 		if (chooseActions != null) {
 			for (int i = 0; i < chooseActions.Length; i++) {
@@ -301,4 +343,57 @@ public class PreyScript : Controller {
 		currentState = State.Flee;
 	}
 
+	/*
+	 * generate states
+	 */
+	float[] generateStates(){
+
+		float[] stateArray  = new float[8];
+		stateArray [0] = (int)currentState; // current state
+		stateArray [1] = (int)currentAction; // current action
+		stateArray [2] = (int)System.Convert.ToSingle (moving); // is it moving
+		stateArray [3] = (int)System.Convert.ToSingle (soundList.Count>0); // length of soundlist
+		stateArray [4] = (int)System.Convert.ToSingle (GetComponent<FieldOfView>().visibleTargets.Count>0); // size of visible targets
+		stateArray [5] = (int)System.Convert.ToSingle (GetComponent<FieldOfView>().visibleEadibles.Count>0); // size of visible targets
+		stateArray [6] = staminaLevel(); // stamina level
+		stateArray [7] = hungerLevel (); // hunger level
+		return stateArray;
+	} // end of generateStates
+
+	/*
+	 * sets stamina as a continuous variable
+	 * that is split into 4 different categories
+	 */
+	int staminaLevel(){
+		int staminaGroup = 0;
+		if (stamina >= 75)
+			staminaGroup = 3;
+		else if (stamina >= 50 && stamina < 75)
+			staminaGroup = 2;
+		else if (stamina >= 25 && stamina < 50)
+			staminaGroup = 1;
+		else
+			staminaGroup = 0;
+
+		return staminaGroup;
+	} // end of staminaLevel
+
+	/*
+	 * sets hunger level as a continuous variable
+	 * that is split into 4 different categories
+	 */
+	int hungerLevel(){
+		int hungerGroup = 0;
+
+		if (hunger >= 75)
+			hungerGroup = 3;
+		else if (hunger >= 50 && hunger < 75)
+			hungerGroup = 2;
+		else if (hunger >= 25 && hunger < 50)
+			hungerGroup = 1;
+		else
+			hungerGroup = 0;
+
+		return hungerGroup;
+	} // end of hungerLevel
 } // end of PreyScript Class

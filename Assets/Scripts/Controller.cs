@@ -11,7 +11,12 @@ public class Controller : MonoBehaviour {
 	public float hunger = 50;
 	public string id;
 
-	protected bool alive = true;
+    //State and Action sizes
+    //public int stateSize;
+    //public int actionSize;
+
+    public bool moving = false; // true if the controller is moving
+	public float reducedSpeed; // the speed that the controller is moving after being modified according to state rotation etc
 
 	public ArrayList eadibleList = new ArrayList(); // list that holds all the eadible objects that the controller collides with
 	public List<Vector3> soundList =  new List<Vector3>(); // holds vector3 points when the sound capsule collides with the controller
@@ -22,53 +27,40 @@ public class Controller : MonoBehaviour {
 	protected NavMeshAgent agent;
 
 	// Field Of View Variables
-	/*float fowSpotedAngle = 30;
-	float fowSpotedRadius = 8;     
-	float fowSeekAngle = 75;
-	float fowSeekRadius = 4;
-	float fowTransitionAngle = 0.3f;
-	float fowTransitionRadius = 0.01f;*/
+	protected float fowSpotedAngle = 30;
+	protected float fowSpotedRadius = 8;     
+	protected float fowSeekAngle = 45;
+	protected float fowSeekRadius = 8;
+	protected float fowTransitionAngle = 0.3f;
+	protected float fowTransitionRadius = 0.01f;
 
-	void Start () {
-		//rigidbody = GetComponent<Rigidbody> ();
-		//viewCamera = Camera.main;
-		//agent = GetComponent<NavMeshAgent> ();
-	}
+	/*
+	* Initializes the object. Constractor
+	* >>ABSTRACT<<
+	*/
+	void Start () {}
 		
-	void Update () {
+	/*
+	 * Updates Every frame
+	 * >>ABSTRACT<<
+	 */
+	void Update () {} 
+
+	/*
+	 * Updates the Physics
+	 * >>ABSTRACT<<
+	 */
+	void FixedUpdate() {} 
+
+	/*
+	 * changes the field of view of the controller according to the state
+	 * >>ABSTRACT<<
+	 */
+	void changeFieldOfView(){}
 		
-	}
-
-	void FixedUpdate() {
-		/*if (alive) { 
-			Vector3 stationary = new Vector3 (0, 0, 0);
-			if (velocity != stationary) {	
-				stamina -= 0.01f * moveSpeed;
-			} else {
-				stamina -= 0.01f;
-
-			}
-			rigidbody.MovePosition (rigidbody.position + velocity * Time.fixedDeltaTime);
-			stamina -= 0.01f;
-		} */
-	} 
-
-	void changeFieldOfView(){
-		/*float angle = GetComponent<FieldOfView>().viewAngle;
-		float radius = GetComponent<FieldOfView>().viewRadius;
-		if (spotted) {
-			if (GetComponent<FieldOfView>().viewAngle > fowSpotedAngle)
-				GetComponent<FieldOfView>().viewAngle -= fowTransitionAngle;
-			if (GetComponent<FieldOfView>().viewRadius < fowSpotedRadius)
-				GetComponent<FieldOfView>().viewRadius += fowTransitionRadius;
-		} else {
-			if (GetComponent<FieldOfView>().viewAngle < fowSeekAngle)
-				GetComponent<FieldOfView>().viewAngle += fowTransitionAngle;
-			if (GetComponent<FieldOfView>().viewRadius > fowSeekRadius)
-				GetComponent<FieldOfView>().viewRadius -= fowTransitionRadius;
-		} */
-	}
-		
+	/*
+	 * returns the string id of the object
+	 */
 	public string getId(){
 		return id;
 	}
@@ -110,10 +102,25 @@ public class Controller : MonoBehaviour {
 		}
 	} // end of removeEadibleObject
 
-	public void addSoundObject(Transform soundOrigin) {
+	/*
+	 * adds the object that its sound has collided with this to the sound list
+	 */
+	public void addSoundObject(Vector3 soundOrigin) {
 		if (soundList.Count > 0)
 			soundList.RemoveAt (0);
-		soundList.Add (soundOrigin.transform.position);
-	}
+		soundList.Add (soundOrigin);
+	} // end of addSoundObject
+
+	/*
+	 * returns a boolean array with the available actions according to the state
+	 * >>ABSTRACT<<
+	 */
+	bool[] getAvailableActions(){ return new bool[0];}
+
+	/*
+	 * selects the next action of the object
+	 * >>ABSTRACT<<
+	 */
+	void selectAction(int action){}
 
 } // end of Controller Class

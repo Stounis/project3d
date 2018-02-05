@@ -4,13 +4,15 @@ using UnityEngine;
 
 public class Rotation : MonoBehaviour {
 	Transform transform;
+
 	int rotateSpeed = 100;
 	public float maxRotation = 15f;
 	public float rotation = 0;
-	bool rotating = false; // not used?
-	bool lookLeft = false;
-	bool lookRight = false;
-	bool lookStraight = false;
+	public bool lookLeft = false;
+	public bool lookRight = false;
+	public bool lookObject = false;
+
+	Vector3 objectPosition;
 
 	// Use this for initialization
 	void Start () {
@@ -24,7 +26,6 @@ public class Rotation : MonoBehaviour {
 		if (lookLeft) {
 			if (rotation < -maxRotation) {
 				lookLeft = false;
-				rotating = false;
 				rotation = 0f;
 			} else {
 				rotateLeft ();
@@ -35,11 +36,23 @@ public class Rotation : MonoBehaviour {
 		if (lookRight) {
 			if (rotation > maxRotation) {
 				lookRight = false;
-				rotating = false;
 				rotation = 0f;
 			} else {
 				rotateRight ();
 				rotation += 1f;
+			}
+		}
+
+		if (lookObject) {
+			float speed = 3f;
+			Vector3 objectDir = (objectPosition - transform.position).normalized;
+			objectDir.y = 0; // only rotate on y axis
+			Quaternion lookRotation = Quaternion.LookRotation (objectDir);
+			float angle = Quaternion.Angle (transform.rotation, lookRotation);
+			if (angle > 4f) { // 3 to 4 is the most optimal
+				transform.rotation = Quaternion.Slerp (transform.rotation, lookRotation, Time.deltaTime * speed);
+			} else {
+				lookObject = false;
 			}
 		}
 	} // end of Update
@@ -51,13 +64,18 @@ public class Rotation : MonoBehaviour {
 	void rotateRight() {
 		transform.Rotate (Vector3.up, (rotateSpeed) * Time.deltaTime); // rotate right
 	}
-
-
+		
 	/*
 	 * Might not be used
 	 */ 
 	public void lookAtObject(Vector3 origin) {
-		transform.LookAt (origin);
+		//transform.LookAt (origin);
+
+		lookLeft = false;
+		lookRight = false;
+		lookObject = true;
+
+		objectPosition = origin;
 	}
 
 	/*
@@ -66,8 +84,8 @@ public class Rotation : MonoBehaviour {
 	public void RotateLeft(){
 		lookLeft = true;
 		lookRight = false;
+		lookObject = false;
 		rotation = 0f;
-		rotating = true;
 	}
 
 
@@ -77,7 +95,7 @@ public class Rotation : MonoBehaviour {
 	public void RotateRight(){
 		lookLeft = false;
 		lookRight = true;
+		lookObject = false;
 		rotation = 0f;
-		rotating = true;
 	}
 }

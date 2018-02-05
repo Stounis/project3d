@@ -22,21 +22,12 @@ public class PredatorScript : Controller {
 
 	//movement and direction
 	Vector3 movingDir;
-	bool moving = false;
 	float initialAngle;
 
 	//rotate variables
 	int rotateSpeed = 75;
 	bool spotted = false;
 	Rotation rotation;
-
-	// Field Of View Variables
-	float fowSpotedAngle = 30;
-	float fowSpotedRadius = 8;     
-	float fowSeekAngle = 75;
-	float fowSeekRadius = 4;
-	float fowTransitionAngle = 0.3f;
-	float fowTransitionRadius = 0.01f;
 
 	//Agent
 	Vector3 destination;
@@ -155,6 +146,7 @@ public class PredatorScript : Controller {
 		movingDir = transform.forward;
 		initialAngle = transform.rotation.y;
 	}
+		
 
 	/*
 	 * changes the moving to false
@@ -174,9 +166,9 @@ public class PredatorScript : Controller {
 		if (soundList.Count > 0) {
 			Vector3 origin = soundList[0];
 			rotation.lookAtObject(origin);
-			agent.enabled = true;
-			destination = origin;
-			agent.SetDestination (origin);
+			//agent.enabled = true;
+			//destination = origin;
+			//agent.SetDestination (origin);
 		}
 	}
 
