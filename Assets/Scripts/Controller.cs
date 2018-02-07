@@ -5,7 +5,10 @@ using UnityEngine.AI;
 
 public class Controller : MonoBehaviour {
 
-	public float moveSpeed = 6;
+    //keyboard
+    public bool keyboard;
+
+    public float moveSpeed = 6;
 	public float weight = 50;
 	public float stamina = 100; // used for walk, run etc
 	public float hunger = 50;
@@ -14,6 +17,10 @@ public class Controller : MonoBehaviour {
     //State and Action sizes
     //public int stateSize;
     //public int actionSize;
+
+    //Reinforcement Learning
+    public QLearning qAlgorithm;
+    public StateArray stateArray;
 
     public bool moving = false; // true if the controller is moving
 	public float reducedSpeed; // the speed that the controller is moving after being modified according to state rotation etc
@@ -34,29 +41,12 @@ public class Controller : MonoBehaviour {
 	protected float fowTransitionAngle = 0.3f;
 	protected float fowTransitionRadius = 0.01f;
 
-	/*
-	* Initializes the object. Constractor
-	* >>ABSTRACT<<
-	*/
-	void Start () {}
-		
-	/*
-	 * Updates Every frame
-	 * >>ABSTRACT<<
-	 */
-	void Update () {} 
-
-	/*
-	 * Updates the Physics
-	 * >>ABSTRACT<<
-	 */
-	void FixedUpdate() {} 
 
 	/*
 	 * changes the field of view of the controller according to the state
 	 * >>ABSTRACT<<
 	 */
-	void changeFieldOfView(){}
+	protected virtual void changeFieldOfView(){}
 		
 	/*
 	 * returns the string id of the object
@@ -65,6 +55,19 @@ public class Controller : MonoBehaviour {
 		return id;
 	}
 
+    /*
+     * given by the runGame
+     */
+    public void setQLearning(QLearning algorithm) {
+        qAlgorithm = algorithm;
+    }
+
+    /*
+     * given by the runGame
+     */
+    public void setStateArray(StateArray array) {
+        stateArray = array;
+    }
 
 	/*
 	 * controller rests to regenerate stamina
@@ -115,12 +118,20 @@ public class Controller : MonoBehaviour {
 	 * returns a boolean array with the available actions according to the state
 	 * >>ABSTRACT<<
 	 */
-	bool[] getAvailableActions(){ return new bool[0];}
+	public virtual bool[] getAvailableActions(int s){ return new bool[0];}
 
 	/*
 	 * selects the next action of the object
 	 * >>ABSTRACT<<
 	 */
-	void selectAction(int action){}
+	public virtual void selectAction(int action){}
+
+    /*
+     * returns a reward according to state and action
+     * >>ABSTRACT<<
+     */
+    public virtual float reward(int state, int action) { return 0; }
+
+    public virtual bool isDead() { return false; }
 
 } // end of Controller Class

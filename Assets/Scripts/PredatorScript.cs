@@ -10,9 +10,9 @@ public class PredatorScript : Controller {
 
 	// states and actions
 	public enum State {Idle, Seek, Attack, Dead};
-	public int stateSize = System.Enum.GetValues(typeof(State)).Length;
+    public int stateSize = System.Enum.GetValues(typeof(State)).Length;       
 	public enum Action {None, RotateLeft, RotateRight, LookAtObject, Move, Stop, FollowObject, Eat, Idle, Seek, Attack};
-	public int actionSize = System.Enum.GetValues(typeof(Action)).Length;
+    public int actionSize = System.Enum.GetValues(typeof(Action)).Length;
 	State currentState;
 	Action currentAction;
 
@@ -37,9 +37,9 @@ public class PredatorScript : Controller {
 		rigidbody = GetComponent<Rigidbody> ();
 		agent = GetComponent<NavMeshAgent> ();
 		rotation = GetComponent<Rotation> ();
-		currentState = State.Idle;
-		initialAngle = transform.rotation.y;
-	}
+		currentState = State.Seek;
+		initialAngle = transform.rotation.y;        
+    }
 	
 	// Update is called once per frame
 	void Update () {
@@ -83,16 +83,38 @@ public class PredatorScript : Controller {
 	 * Updates the Physics
 	 */
 	void FixedUpdate() {
-		// reducing the speed according to the rotation of the object
-		if (moving) {
-			float reducedSpeed = moveSpeed - ((moveSpeed/2)*Mathf.Abs((initialAngle-transform.rotation.y)%180));
-			rigidbody.velocity = movingDir * reducedSpeed;
-		} else {
-			rigidbody.velocity = transform.forward * 0;
-		}
-	} // end of Fixed-Update
+        // reducing the speed according to the rotation of the object
+        if (agent.enabled)
+        {
+            if (agent.enabled && Vector3.Distance(transform.position, destination) <= 1f)
+            {
+                agent.destination = transform.position;
+                agent.enabled = false;
+            }
+        }
+        else
+        {
+            if (moving)
+            {
+                reducedSpeed = moveSpeed - ((moveSpeed / 2) * Mathf.Abs((initialAngle - transform.rotation.y) % 180));
+                rigidbody.velocity = movingDir * reducedSpeed;
+            }
+            else
+            {
+                rigidbody.velocity = transform.forward * 0;
+            }
+        }
+    } // end of Fixed-Update
 
-	void rotate(){
+    /*
+     * returns true if agent is dead
+     */
+    public override bool isDead()
+    {
+        return State.Dead == currentState;
+    } // end of isdead
+
+    void rotate(){
 		spotted = false;
 		transform.Rotate (Vector3.up, (rotateSpeed) * Time.deltaTime); // rotate right
 
@@ -212,7 +234,8 @@ public class PredatorScript : Controller {
 	 * returns a boolean array with all the available actions of the object.
 	 * the actions are selected according to the object's state and other parameters.
 	 */
-	public bool[] getAvailableActions(State state){
+	public bool[] getAvailableActions(int s){
+		State state = intToState (s);
 		bool[] availableActions = new bool[actionSize];
 		Action[] chooseActions = null;
 		switch (state) {
@@ -309,5 +332,19 @@ public class PredatorScript : Controller {
 			}
 		}			
 	}
+
+	/*
+	 * converts an integer to a state
+	 */
+	PredatorScript.State intToState(int i){
+		if (i == (int)PredatorScript.State.Idle)
+			return PredatorScript.State.Idle;
+		else if (i == (int)PredatorScript.State.Seek)
+			return PredatorScript.State.Seek;
+		else if (i == (int)PredatorScript.State.Attack)
+			return PredatorScript.State.Attack;
+		else 
+			return PredatorScript.State.Dead;
+	} // end of intToState
 
 } // end of PredatorScript

@@ -12,6 +12,7 @@ public class PreyScript : Controller {
 	public int actionSize = System.Enum.GetValues(typeof(Action)).Length;
 	State currentState;
 	Action currentAction;
+    ObjectState oldState = null;
 
 	//speed
 	public float FleeMovepSpeed = 6;
@@ -30,91 +31,81 @@ public class PreyScript : Controller {
 		agent = GetComponent<NavMeshAgent> ();
 		initialAngle = transform.rotation.y; // the object only rotates on the y axis
 		rotation = GetComponent<Rotation> ();
-		currentState = State.Idle;
+		currentState = State.Seek;
 	} // end of Start
 
-	/*
+    /*
 	 * Updates every frame
 	 */
-	void Update(){
-		switch (currentState) {
-		case State.Idle:
-			rest (0.1f);
-			stop ();
-			break;
-		case State.Seek:
-			consumeStamina (0.01f);
-			moveSpeed = SeekMoveSpeed;
-			break;
-		case State.Flee:
-			consumeStamina (0.1f);
-			moveSpeed = FleeMovepSpeed;
-			break;
-		}
-		hunger -= 0.01f;
+    void Update() {
+        if (currentState == State.Dead)
+            return;
+        hunger -= 0.01f;
 
-		bool[] availableActions = getAvailableActions (); // get the available actions
-		Action action = Action.None; // testing actions with keyboard
+        if (stamina < 25 || hunger > 75)
+        {
+            moveSpeed = 2f;
+        }
 
-		////// ACTIONS CONTROLLED BY THE KEYBOARD ////// 
-		if (Input.GetKey (KeyCode.E) && availableActions [(int)Action.Eat]) {
-			Debug.Log ("Prey Eating!");
-			//eat ();
-			action = Action.Eat;
-		}
+        if (hunger < 0 || hunger > 115)
+        { // starved to death or sploded from too much food
+            Dead();
+        }
 
-		if (Input.GetKey (KeyCode.A) && availableActions [(int)Action.MoveForward]) {
-			//rigidbody.velocity = transform.forward * moveSpeed;
-			//move();
-			action = Action.MoveForward;
-		}
-		if (Input.GetKey (KeyCode.S) && availableActions [(int)Action.MoveBackwards]) {
-			action = Action.MoveBackwards;
-		}
-		if (Input.GetKey (KeyCode.Z) && availableActions [(int)Action.FollowObject]) {
-			action = Action.FollowObject;
-		}
-		if (Input.GetKey (KeyCode.D) && availableActions [(int)Action.Stop]) {
-			//rigidbody.velocity = transform.forward * 0;
-			//stop();
-			action = Action.Stop;
-		}
-		if (Input.GetKey (KeyCode.X) && availableActions [(int)Action.LookAtObject]) {
-			action = Action.LookAtObject;
-		}
+        switch (currentState) {
+            case State.Idle:
+                rest(0.1f);
+                stop();
+                break;
+            case State.Seek:
+                consumeStamina(0.01f);
+                moveSpeed = SeekMoveSpeed;
+                break;
+            case State.Flee:
+                consumeStamina(0.1f);
+                moveSpeed = FleeMovepSpeed;
+                break;
+        }
 
-		//switch state test
-		if (Input.GetKey (KeyCode.Alpha1) && availableActions [(int)Action.Idle]){ // Idle
-			//Idle ();
-			action = Action.Idle;
-		}
-		if (Input.GetKey (KeyCode.Alpha2) && availableActions [(int)Action.Seek]) { // Seek
-			//Seek ();
-			action = Action.Seek;
-		}
-		if (Input.GetKey (KeyCode.Alpha3) && availableActions[(int)Action.Flee]){ // Flee
-			//Flee ();
-			action = Action.Flee;
-		}
+        int[] states = generateStates();
+        ObjectState curState = stateArray.findState(states);
+        if (curState == null)   // check that state exist 
+            curState = stateArray.addState(states);
 
-		if (Input.GetKey (KeyCode.Q) && availableActions[(int)Action.RotateLeft]){ // 1 on keyboard to rotate left
-			//rotation.RotateLeft (); // method will be called by controller
-			action = Action.RotateLeft;
-		}
-		if (Input.GetKey (KeyCode.W) && availableActions[(int)Action.RotateRight]){ // 2 on keyboard to rotate right
-			//rotation.RotateRight (); // method will be called by controller
-			action = Action.RotateRight;
-		}
+        // debug
+        bool moveToNewState = true;
+        if (oldState != null) {
+            if (oldState.getId() != curState.getId())
+            {
+                Debug.Log("current state: " + curState.getId());
+                moveToNewState = true;
+            }
+        }
 
-		selectAction (action); 
+        //Calculate Q using the previous objstate,action and the current objstate
+        if (oldState != null && moveToNewState)
+        {
+            qAlgorithm.rl(oldState, (int)currentAction, curState);
+            //qAlgorithm.printQTable();
+        }
 
-		if (stamina < 25) {
-			moveSpeed = 2f;
-		}
 
-		if (hunger < 0) {
-			Dead ();
-		}			
+        bool[] availableActions = getAvailableActions((int)currentState); // get the available actions
+        Action action = Action.None; // testing actions with keyboard
+
+        if (keyboard)
+        {// if boolean variable is true use the keyboard commands
+            action = keyboardActions(availableActions);
+            selectAction((int)action);
+        }
+        else if (moveToNewState) { 
+             action = intToAction(qAlgorithm.bestAction(curState));// get best action according to q table
+            selectAction((int)action);
+        }
+
+        //Debug.Log("selected Action: " + action);
+		selectAction ((int)action);
+        oldState = curState;
 	} // end of Update
 
 	/*
@@ -136,11 +127,19 @@ public class PreyScript : Controller {
 			}
 		}
 	} // end of Fixed-Update
-		
-	/*
+
+    /*
+     * returns true if the agent is dead, false if its not
+     */
+    public override bool isDead()
+    {
+        return State.Dead == currentState;
+    } // end of is dead;
+
+    /*
 	 * Look At sound Source
 	 */
-	void lookAtSound(){
+    void lookAtSound(){
 		/*if (soundList.Count > 0) {
 			Vector3 origin = soundList[0];
 			rotation.lookAtObject(origin);
@@ -205,14 +204,15 @@ public class PreyScript : Controller {
 			GameObject e = (GameObject)eadibleList [0];
 			eadibleList.RemoveAt (0);
 			Destroy (e);
-			hunger += 30;
+			hunger += 15;
 		}
 	} // end of eat
 
 	/*
 	 * Selects the next action
 	 */
-	void selectAction(Action action){
+	public override void selectAction(int a){
+        Action action = intToAction(a);
 		currentAction = action;
 		switch (currentAction) {
 		case Action.RotateLeft:
@@ -255,10 +255,11 @@ public class PreyScript : Controller {
 	 * returns a boolean array with all the available actions of the object.
 	 * the actions are selected according to the object's state and other parameters.
 	 */
-	bool[] getAvailableActions(){
+	public override bool[] getAvailableActions(int s){
+		State state = intToState (s);
 		bool[] availableActions = new bool[actionSize];
 		Action[] chooseActions = null;
-		switch (currentState) {
+		switch (state) {
 		case State.Idle:
 			chooseActions = new Action[]{
 				Action.RotateLeft, 
@@ -297,6 +298,7 @@ public class PreyScript : Controller {
 			break;
 		case State.Dead:
 			chooseActions = null;
+            return availableActions;
 			break;
 		}
 		if (GetComponent<FieldOfView>().visibleEadibles.Count>0){ // test, replace eadible with sound source
@@ -346,17 +348,18 @@ public class PreyScript : Controller {
 	/*
 	 * generate states
 	 */
-	float[] generateStates(){
+	int[] generateStates(){
 
-		float[] stateArray  = new float[8];
+		int[] stateArray  = new int[9];
 		stateArray [0] = (int)currentState; // current state
 		stateArray [1] = (int)currentAction; // current action
 		stateArray [2] = (int)System.Convert.ToSingle (moving); // is it moving
 		stateArray [3] = (int)System.Convert.ToSingle (soundList.Count>0); // length of soundlist
 		stateArray [4] = (int)System.Convert.ToSingle (GetComponent<FieldOfView>().visibleTargets.Count>0); // size of visible targets
 		stateArray [5] = (int)System.Convert.ToSingle (GetComponent<FieldOfView>().visibleEadibles.Count>0); // size of visible targets
-		stateArray [6] = staminaLevel(); // stamina level
-		stateArray [7] = hungerLevel (); // hunger level
+        stateArray [6] = (int)System.Convert.ToSingle(eadibleList.Count > 0); // contact with eadibles
+        stateArray [7] = staminaLevel(); // stamina level
+		stateArray [8] = hungerLevel (); // hunger level
 		return stateArray;
 	} // end of generateStates
 
@@ -385,7 +388,9 @@ public class PreyScript : Controller {
 	int hungerLevel(){
 		int hungerGroup = 0;
 
-		if (hunger >= 75)
+        if (hunger > 100)
+            hungerGroup = 4;
+		else if (hunger >= 75 && hunger <= 100)
 			hungerGroup = 3;
 		else if (hunger >= 50 && hunger < 75)
 			hungerGroup = 2;
@@ -396,4 +401,114 @@ public class PreyScript : Controller {
 
 		return hungerGroup;
 	} // end of hungerLevel
+
+    /*
+	 * returns the reward according to the state and action 
+	 */
+    public override float reward(int state, int action)
+    {
+        float reward = 0f;
+        if (intToState(state) != PreyScript.State.Dead)
+        {
+            if (action == (int)PreyScript.Action.Eat)
+                reward = 20f;
+            else
+                reward = -1f;
+        }
+        else
+        {
+            reward = -100f;
+        }
+        return reward;
+    } // end of R
+
+    /*
+	 * converts an integer to a state
+	 */
+    PreyScript.State intToState(int i){
+		if (i == (int)PreyScript.State.Idle)
+			return PreyScript.State.Idle;
+		else if (i == (int)PreyScript.State.Seek)
+			return PreyScript.State.Seek;
+		else if (i == (int)PreyScript.State.Flee)
+			return PreyScript.State.Flee;
+		else 
+			return PreyScript.State.Dead;
+	} // end of intToState
+
+    /*
+     * converts int to an action
+     */
+    PreyScript.Action intToAction(int a) {
+        foreach (Action action in System.Enum.GetValues(typeof(Action))) {
+            if ((int)action == a)
+                return action;
+        }
+        return Action.None;
+    } // end of intToAction
+
+    PreyScript.Action keyboardActions(bool[] availableActions) {
+        Action action = Action.None;
+        ////// ACTIONS CONTROLLED BY THE KEYBOARD ////// 
+        if (Input.GetKey(KeyCode.E) && availableActions[(int)Action.Eat])
+        {
+            Debug.Log("Prey Eating!");
+            //eat ();
+            action = Action.Eat;
+        }
+
+        if (Input.GetKey(KeyCode.A) && availableActions[(int)Action.MoveForward])
+        {
+            //rigidbody.velocity = transform.forward * moveSpeed;
+            //move();
+            action = Action.MoveForward;
+        }
+        if (Input.GetKey(KeyCode.S) && availableActions[(int)Action.MoveBackwards])
+        {
+            action = Action.MoveBackwards;
+        }
+        if (Input.GetKey(KeyCode.Z) && availableActions[(int)Action.FollowObject])
+        {
+            action = Action.FollowObject;
+        }
+        if (Input.GetKey(KeyCode.D) && availableActions[(int)Action.Stop])
+        {
+            //rigidbody.velocity = transform.forward * 0;
+            //stop();
+            action = Action.Stop;
+        }
+        if (Input.GetKey(KeyCode.X) && availableActions[(int)Action.LookAtObject])
+        {
+            action = Action.LookAtObject;
+        }
+
+        //switch state test
+        if (Input.GetKey(KeyCode.Alpha1) && availableActions[(int)Action.Idle])
+        { // Idle
+          //Idle ();
+            action = Action.Idle;
+        }
+        if (Input.GetKey(KeyCode.Alpha2) && availableActions[(int)Action.Seek])
+        { // Seek
+          //Seek ();
+            action = Action.Seek;
+        }
+        if (Input.GetKey(KeyCode.Alpha3) && availableActions[(int)Action.Flee])
+        { // Flee
+          //Flee ();
+            action = Action.Flee;
+        }
+
+        if (Input.GetKey(KeyCode.Q) && availableActions[(int)Action.RotateLeft])
+        { // 1 on keyboard to rotate left
+          //rotation.RotateLeft (); // method will be called by controller
+            action = Action.RotateLeft;
+        }
+        if (Input.GetKey(KeyCode.W) && availableActions[(int)Action.RotateRight])
+        { // 2 on keyboard to rotate right
+          //rotation.RotateRight (); // method will be called by controller
+            action = Action.RotateRight;
+        }
+        return action;
+    } //end of keyboard actions
 } // end of PreyScript Class
