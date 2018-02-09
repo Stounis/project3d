@@ -16,6 +16,7 @@ public class QLearning {
     StateArray stateArray;
     int actionSize;
 
+    public bool bestaction = false;
 
     ArrayList memory; // stores previous state/actions to update the q table
     int maxMemory = 60; // max number of state/actions stored in memory
@@ -91,16 +92,26 @@ public class QLearning {
     } // end of maintain memory
 
     /*
+     *  returns the best or a random action according to the variable
+     */
+    public int nextAction(ObjectState s) {
+        if (bestaction)
+            return bestAction(s);
+        else
+            return randomAction(s);
+    }
+
+    /*
      * returns the action with the highest q value
      */
-    public int bestAction(ObjectState s) {
+    int bestAction(ObjectState s) {
 
         updateStates();
 
         int action = 0;
         float maxValue = float.MinValue;
 
-        bool[] possibleActions = controller.getAvailableActions(s.getId());
+        bool[] possibleActions = controller.getAvailableActions(s.getState());
         float[] Qactions = (float[])Q[s.getId()];
         for (int i = 0; i < possibleActions.Length; i++)
         {
@@ -116,27 +127,16 @@ public class QLearning {
         return action;
     } // end of bestAction
 
-    public int randomAction(ObjectState s) {
+    int randomAction(ObjectState s) {
         updateStates();
         int state = 0;
-        bool[] possibleActions = controller.getAvailableActions(s.getId());
-        int trues=0;
-        for (int i = 0; i < possibleActions.Length; i++) {
-            if (possibleActions[i])
-                trues += 1;
-        }
-        if (trues > 0)
-        {
-            for (int i = 0; i < possibleActions.Length; i++)
-            {
-                if (possibleActions[i]) {
-                    trues -= 1;
-                    if (trues == 0)
-                    {
-                        state = i;
-                        break;
-                    }
-                }
+        bool[] possibleActions = controller.getAvailableActions(s.getState());
+
+        for (int i =0; i<10; i++) {
+            int random = Random.Range(0, possibleActions.Length - 1);
+            if (possibleActions[random]) {
+                state = random;
+                break;
             }
         }
 
@@ -204,14 +204,29 @@ public class QLearning {
             return PredatorScript.State.Dead;
     } // end of intToState
 
-    public void printQTable() {
+    /*
+     * load q table from file
+     */
+    public void loadQTable(ArrayList list) {
+        if (Q.Count > 0)
+            return;
+        for (int i=0; i<list.Count; i++) {
+            float[] row = (float[])list[i];
+            Q.Add(row);
+        }
+    } // end of loadQTable
+
+    /*
+     * prints the q table in a message
+     */
+    public string printQTable() {
         string message = "";
         foreach (float[] row in Q) {            
             for (int i = 0; i < row.Length; i++) {
                 message = message + " " + row[i];
             }
-            message = message + "\n";
+            message = message + "\r\n";
         }
-        Debug.Log(message);
+        return message;
     } // end of printQTable
 } // end of QLearning

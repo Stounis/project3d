@@ -28,4 +28,20 @@ public class ObjectState {
 		}
 		return match;
 	}
+
+    /*
+     * prints the state array in a message
+     */
+    public string printState() {
+        string m = "";
+
+        for (int i = 0; i < stateArray.Length; i++) {
+            if (i != stateArray.Length - 1)
+                m = m + stateArray[i] + " ";
+            else
+                m = m + stateArray[i];
+        }
+
+        return m;
+    }
 } // end of state class

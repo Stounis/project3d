@@ -15,12 +15,14 @@ public class PredatorScript : Controller {
     public int actionSize = System.Enum.GetValues(typeof(Action)).Length;
 	State currentState;
 	Action currentAction;
+    ObjectState oldState = null;
 
 	//speed
 	public float SeekMoveSpeed = 4.5f;
 	public float AttackMoveSpeed = 6.5f;
 
-	//movement and direction
+    //movement and direction
+    Vector3 destination;
 	Vector3 movingDir;
 	float initialAngle;
 
@@ -29,8 +31,6 @@ public class PredatorScript : Controller {
 	bool spotted = false;
 	Rotation rotation;
 
-	//Agent
-	Vector3 destination;
 
 	// Use this for initialization
 	void Start () {
@@ -114,22 +114,6 @@ public class PredatorScript : Controller {
         return State.Dead == currentState;
     } // end of isdead
 
-    void rotate(){
-		spotted = false;
-		transform.Rotate (Vector3.up, (rotateSpeed) * Time.deltaTime); // rotate right
-
-		// if prey spotted lock onto it
-		if (this.GetComponent<FieldOfView> ().visibleTargets.Count > 0) {
-			// lock on first prey
-			// maybe change later to closest if multiple prey?
-			if (this.GetComponent<FieldOfView> ().visibleTargets [0].transform != null) {
-				spotted = true;
-				transform.LookAt (this.GetComponent<FieldOfView> ().visibleTargets [0].transform);
-				//agent.SetDestination (this.GetComponent<FieldOfView>().visibleTargets[0].transform.position);
-			}
-		}
-	}
-
 	void changeFieldOfView(){
 		float angle = GetComponent<FieldOfView>().viewAngle;
 		float radius = GetComponent<FieldOfView>().viewRadius;
@@ -160,31 +144,55 @@ public class PredatorScript : Controller {
 		}
 	} // end of eat
 
-	/*
-	 * changes the moving to true
+    /*
+	 * Action Move towards the movingDir (direction)
+	 * initialAngle is to reduce the speed according to how much the rotation of the object has altered during that initial move action
 	 */
-	void move(){
-		moving = true;
-		movingDir = transform.forward;
-		initialAngle = transform.rotation.y;
-	}
-		
+    void moveForward() {
+        agent.enabled = false;
+        movingDir = transform.forward;
+        initialAngle = transform.rotation.y;
+        moving = true;
+    }
 
-	/*
-	 * changes the moving to false
+    /*
+	 * Action MoveBack
 	 */
-	void stop(){
-		moving = false;
-		if (agent.enabled) {
-			agent.SetDestination (transform.position);
-			agent.enabled = false;
-		}
-	}
+    void moveBackward() {
+        agent.enabled = false;
+        movingDir = -transform.forward;
+        initialAngle = Quaternion.Inverse(transform.rotation).y;
+        moving = true;
+    }
 
-	/*
+    /*
+	 * move towards an eadible object
+	 */
+    void moveToTarget() {
+        if(!agent.enabled)
+            stop();
+        agent.enabled = true;
+        if (GetComponent<FieldOfView>().visibleTargets.Count > 0) {
+            Transform eadible = (Transform)GetComponent<FieldOfView>().visibleTargets[0];
+            Vector3 targetPosition = eadible.position;
+            agent.SetDestination(targetPosition);
+            destination = targetPosition;
+        }
+    }
+
+    /*
+	 * Action Stop. stops the movement of the object
+	 */
+    void stop() {
+        agent.enabled = false;
+        moving = false;
+        rigidbody.velocity = transform.forward * 0;
+    }
+
+    /*
 	 * Look At sound Source
 	 */
-	void lookAtSound(){
+    void lookAtSound(){
 		if (soundList.Count > 0) {
 			Vector3 origin = soundList[0];
 			rotation.lookAtObject(origin);
@@ -197,7 +205,8 @@ public class PredatorScript : Controller {
 	/*
 	 * Selects the next action
 	 */
-	void selectAction(Action action){
+	void selectAction(int a){
+        Action action = intToAction(a);
 		currentAction = action;
 		switch (currentAction) {
 		case Action.RotateLeft:
@@ -210,7 +219,7 @@ public class PredatorScript : Controller {
 			lookAtSound ();
 			break;
 		case Action.Move:
-			move ();
+			moveForward ();
 			break;
 		case Action.Stop:
 			stop ();
@@ -315,10 +324,26 @@ public class PredatorScript : Controller {
 		currentState = State.Dead;
 	}
 
-	/*
+    /*
+	 * returns the reward according to the state and action 
+	 */
+    public override float reward(int state, int action) {
+        float reward = 0f;
+        if (intToState(state) != PredatorScript.State.Dead) {
+            if (action == (int)PredatorScript.Action.Eat)
+                reward = 100f;
+            else
+                reward = 0;
+        }
+        else
+            reward = -100f;
+        return reward;
+    }
+
+    /*
 	 * adds prey to the list when the prey collides with the secondary game object
 	 */
-	public void addPreyToList(GameObject g){
+    public void addPreyToList(GameObject g){
 		eatPreyList.Add (g);
 	}
 
@@ -346,5 +371,16 @@ public class PredatorScript : Controller {
 		else 
 			return PredatorScript.State.Dead;
 	} // end of intToState
+
+    /*
+    * converts int to an action
+    */
+    PredatorScript.Action intToAction(int a) {
+        foreach (Action action in System.Enum.GetValues(typeof(Action))) {
+            if ((int)action == a)
+                return action;
+        }
+        return Action.None;
+    } // end of intToAction
 
 } // end of PredatorScript

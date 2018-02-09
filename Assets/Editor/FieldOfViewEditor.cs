@@ -24,8 +24,9 @@ public class FieldOfViewEditor : Editor {
 
 		// Draw line between transform and eadible objects
 		Handles.color = Color.magenta;
-		foreach (Transform visibleEadible in fow.visibleEadibles){			
-			Handles.DrawLine (fow.transform.position, visibleEadible.position);
+		foreach (Transform visibleEadible in fow.visibleEadibles){		
+            if (visibleEadible!=null)
+			    Handles.DrawLine (fow.transform.position, visibleEadible.position);
 		}
 	}
 

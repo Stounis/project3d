@@ -907,6 +907,7 @@ MonoBehaviour:
     type: 2}
   runs: 100
   counter: 0
+  loadFiles: 1
 --- !u!1 &856281938
 GameObject:
   m_ObjectHideFlags: 0
@@ -1098,7 +1099,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   eadible: {fileID: 1048802596749322, guid: 06f6a250d78bc7d4893f016848aab68a, type: 2}
-  maxNumEadibles: 20
+  maxNumEadibles: 25
 --- !u!1001 &990377402
 Prefab:
   m_ObjectHideFlags: 0

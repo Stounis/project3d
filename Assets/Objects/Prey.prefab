@@ -366,15 +366,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f2fe8777ba39b38499dd66a995b0d3c4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  keyboard: 1
   moveSpeed: 4
   weight: 50
   stamina: 100
-  hunger: 25
+  hunger: 15
   id: Gromit
   moving: 0
   reducedSpeed: 0
   soundList: []
-  keyboard: 1
   stateSize: 4
   actionSize: 12
   FleeMovepSpeed: 6

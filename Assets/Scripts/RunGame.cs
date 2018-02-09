@@ -19,8 +19,16 @@ public class RunGame : MonoBehaviour {
     public int runs = 100;
     public int counter = 0; // counts the runs
 
-	// Use this for initialization
-	void Start () {
+    //test filemanager
+    FileManagement fileManager = new FileManagement();
+    bool writefile = false;
+    bool save = false;
+    bool saved = false;
+    public bool loadFiles;
+    bool loaded = false;
+
+    // Use this for initialization
+    void Start () {
 
         //instantiate prey
         prey = Instantiate(preyprefab) as GameObject;
@@ -37,14 +45,46 @@ public class RunGame : MonoBehaviour {
         predatorController.stateArray = predatorStateArray;
         predatorQlearning = new QLearning(predatorController, predatorStateArray, 11);
         predatorController.qAlgorithm = predatorQlearning;
+
     } // end of start
 	
 	// Update is called once per frame
 	void Update () {
-        if (Input.GetKey(KeyCode.T))
-            preyQlearning.printQTable();
 
+        // load files
+        if (loadFiles) {
+            if (!loaded) {
+                loaded = true;
+                preyStateArray.loadStates(fileManager.readFileStates("Assets/Results/Prey/solotrain/states/preysoloStates1.txt"));
+                preyQlearning.loadQTable(fileManager.readFileQ("Assets/Results/Prey/solotrain/Qtable/preysoloQ1.txt"));
+            }
+        }
+
+        // save files 
+        if (save) {
+            if (!saved) {
+                saved = true;
+                fileManager.writeFile("Assets/Results/Prey/solotrain/Qtable/", "preysoloQ", preyQlearning.printQTable());
+                fileManager.writeFile("Assets/Results/Prey/solotrain/states/", "preysoloStates", preyStateArray.printStates());
+            }
+        }
+        if (Input.GetKey(KeyCode.H)) { // save progress
+            save = true;
+        }
+
+        if (Input.GetKey(KeyCode.T)) // print q
+            Debug.Log(preyQlearning.printQTable());
+
+        if (Input.GetKey(KeyCode.Y)) // print states
+            Debug.Log(preyStateArray.printStates());
+
+        // reset
         if (Input.GetKey(KeyCode.R)) {
+            preyQlearning.bestaction = false;
+            resetAgents();
+        }
+        if (Input.GetKey(KeyCode.F)) {
+            preyQlearning.bestaction = true;
             resetAgents();
         }
 

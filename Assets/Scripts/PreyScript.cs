@@ -73,15 +73,16 @@ public class PreyScript : Controller {
             curState = stateArray.addState(states);
 
         // debug
-        bool moveToNewState = true;
+        bool moveToNewState = false;
         if (oldState != null) {
             if (oldState.getId() != curState.getId())
             {
                 Debug.Log("current state: " + curState.getId());
+                
                 moveToNewState = true;
             }
         }
-
+        
         //Calculate Q using the previous objstate,action and the current objstate
         if (oldState != null && moveToNewState)
         {
@@ -89,22 +90,22 @@ public class PreyScript : Controller {
             //qAlgorithm.printQTable();
         }
 
-
         bool[] availableActions = getAvailableActions((int)currentState); // get the available actions
-        Action action = Action.None; // testing actions with keyboard
+        //Action action = Action.None; // testing actions with keyboard
 
         if (keyboard)
         {// if boolean variable is true use the keyboard commands
-            action = keyboardActions(availableActions);
+            Action action = keyboardActions(availableActions);
             selectAction((int)action);
         }
-        else if (moveToNewState) { 
-             action = intToAction(qAlgorithm.bestAction(curState));// get best action according to q table
+        else /*if (moveToNewState)*/ { 
+            Action action = intToAction(qAlgorithm.nextAction(curState));// get best action according to q table
+            Debug.Log("selected action: " + action);
             selectAction((int)action);
         }
 
         //Debug.Log("selected Action: " + action);
-		selectAction ((int)action);
+		//selectAction ((int)action);
         oldState = curState;
 	} // end of Update
 
@@ -177,7 +178,8 @@ public class PreyScript : Controller {
 	 * move towards an eadible object
 	 */
 	void moveToEadible(){
-		stop ();
+        if(!agent.enabled)
+		    stop ();
 		agent.enabled = true;
 		if (GetComponent<FieldOfView>().visibleEadibles.Count > 0) {
 			Transform eadible = (Transform)GetComponent<FieldOfView>().visibleEadibles [0];
@@ -270,32 +272,37 @@ public class PreyScript : Controller {
 			break;
 		case State.Seek:
 			chooseActions = new Action[] {
+                Action.None,
 				Action.RotateLeft,
 				Action.RotateRight,
-				Action.LookAtObject,
 				Action.MoveForward,
 				Action.MoveBackwards,
-				Action.Stop,
 				Action.Flee,
 				Action.Idle
 			};
 			if (eadibleList.Count > 0 && !moving) // eat rule
 				availableActions [(int)Action.Eat] = true;
-			if (GetComponent<FieldOfView>().visibleEadibles.Count > 0) // move towards object rule
-				availableActions [(int)Action.FollowObject] = true;
+                if (GetComponent<FieldOfView>().visibleEadibles.Count > 0) { // move towards object rule
+                    if(!agent.enabled)
+                        availableActions[(int)Action.FollowObject] = true;
+                    availableActions[(int)Action.LookAtObject] = true;
+                }
+                if (moving || agent.enabled)
+                    availableActions[(int)Action.Stop] = true;
 			break;
 		case State.Flee:
 			chooseActions = new Action[]{
+                Action.None,
 				Action.RotateLeft, 
 				Action.RotateRight, 
-				Action.LookAtObject, 
 				Action.MoveForward, 
 				Action.MoveBackwards,
-				Action.Stop, 
 				Action.Seek, 
 				Action.Idle
 			};
-			break;
+            if (moving || agent.enabled)
+                availableActions[(int)Action.Stop] = true;
+                break;
 		case State.Dead:
 			chooseActions = null;
             return availableActions;
@@ -352,9 +359,10 @@ public class PreyScript : Controller {
 
 		int[] stateArray  = new int[9];
 		stateArray [0] = (int)currentState; // current state
-		stateArray [1] = (int)currentAction; // current action
-		stateArray [2] = (int)System.Convert.ToSingle (moving); // is it moving
-		stateArray [3] = (int)System.Convert.ToSingle (soundList.Count>0); // length of soundlist
+		//stateArray [1] = (int)currentAction; // current action
+		stateArray [1] = (int)System.Convert.ToSingle (moving); // is it moving
+        stateArray [2] = (int)System.Convert.ToSingle(agent.enabled);
+        stateArray [3] = (int)System.Convert.ToSingle (soundList.Count>0); // length of soundlist
 		stateArray [4] = (int)System.Convert.ToSingle (GetComponent<FieldOfView>().visibleTargets.Count>0); // size of visible targets
 		stateArray [5] = (int)System.Convert.ToSingle (GetComponent<FieldOfView>().visibleEadibles.Count>0); // size of visible targets
         stateArray [6] = (int)System.Convert.ToSingle(eadibleList.Count > 0); // contact with eadibles
@@ -368,7 +376,7 @@ public class PreyScript : Controller {
 	 * that is split into 4 different categories
 	 */
 	int staminaLevel(){
-		int staminaGroup = 0;
+		/*int staminaGroup = 0;
 		if (stamina >= 75)
 			staminaGroup = 3;
 		else if (stamina >= 50 && stamina < 75)
@@ -376,9 +384,9 @@ public class PreyScript : Controller {
 		else if (stamina >= 25 && stamina < 50)
 			staminaGroup = 1;
 		else
-			staminaGroup = 0;
+			staminaGroup = 0;*/
 
-		return staminaGroup;
+		return (int)stamina/10;
 	} // end of staminaLevel
 
 	/*
@@ -386,7 +394,7 @@ public class PreyScript : Controller {
 	 * that is split into 4 different categories
 	 */
 	int hungerLevel(){
-		int hungerGroup = 0;
+		/*int hungerGroup = 0;
 
         if (hunger > 100)
             hungerGroup = 4;
@@ -397,9 +405,9 @@ public class PreyScript : Controller {
 		else if (hunger >= 25 && hunger < 50)
 			hungerGroup = 1;
 		else
-			hungerGroup = 0;
+			hungerGroup = 0;*/
 
-		return hungerGroup;
+		return (int)hunger/10;
 	} // end of hungerLevel
 
     /*
@@ -413,7 +421,7 @@ public class PreyScript : Controller {
             if (action == (int)PreyScript.Action.Eat)
                 reward = 20f;
             else
-                reward = -1f;
+                reward = 0f;
         }
         else
         {
