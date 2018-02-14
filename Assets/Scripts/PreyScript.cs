@@ -14,12 +14,15 @@ public class PreyScript : Controller {
 	Action currentAction;
     ObjectState oldState = null;
 
+    public int testCompass = 0;
+
 	//speed
 	public float FleeMovepSpeed = 6;
 	public float SeekMoveSpeed = 4;
 
 	Vector3 destination; // agent destination
 	Vector3 movingDir; // moving direction
+    Vector3 nextPosition; // test
 
 	// rotation reduction speed
 	float initialAngle;
@@ -32,12 +35,18 @@ public class PreyScript : Controller {
 		initialAngle = transform.rotation.y; // the object only rotates on the y axis
 		rotation = GetComponent<Rotation> ();
 		currentState = State.Seek;
+
+        nextPosition = transform.position;
 	} // end of Start
 
     /*
 	 * Updates every frame
 	 */
     void Update() {
+
+        //test compass
+        testCompass = compass();
+        
         if (currentState == State.Dead)
             return;
         hunger -= 0.01f;
@@ -77,7 +86,7 @@ public class PreyScript : Controller {
         if (oldState != null) {
             if (oldState.getId() != curState.getId())
             {
-                Debug.Log("current state: " + curState.getId());
+                //Debug.Log("current state: " + curState.getId());
                 
                 moveToNewState = true;
             }
@@ -100,7 +109,7 @@ public class PreyScript : Controller {
         }
         else /*if (moveToNewState)*/ { 
             Action action = intToAction(qAlgorithm.nextAction(curState));// get best action according to q table
-            Debug.Log("selected action: " + action);
+            //Debug.Log("selected action: " + action);
             selectAction((int)action);
         }
 
@@ -121,12 +130,14 @@ public class PreyScript : Controller {
 			}
 		} else {
 			if (moving) {
-				reducedSpeed = moveSpeed - ((moveSpeed / 2) * Mathf.Abs ((initialAngle - transform.rotation.y) % 180));
-				rigidbody.velocity = movingDir * reducedSpeed;
-			} else {
+                reducedSpeed = moveSpeed - ((moveSpeed / 2) * Mathf.Abs((initialAngle - transform.rotation.y) % 180));
+                rigidbody.velocity = movingDir * reducedSpeed;                
+            } else {
 				rigidbody.velocity = transform.forward * 0;
 			}
 		}
+
+        velocity = rigidbody.velocity;// TEST
 	} // end of Fixed-Update
 
     /*
@@ -170,7 +181,8 @@ public class PreyScript : Controller {
 	void moveBackward(){
 		agent.enabled = false;
 		movingDir = -transform.forward;
-		initialAngle = Quaternion.Inverse(transform.rotation).y;
+        initialAngle = Quaternion.Inverse(transform.rotation).y;
+        //initialAngle = (Quaternion.Inverse(transform.rotation)*transform.rotation).y;
 		moving = true;
 	}
 
@@ -269,7 +281,9 @@ public class PreyScript : Controller {
 				Action.Flee,
 				Action.Seek
 			};
-			break;
+            if (eadibleList.Count > 0 && !moving) // eat rule
+                availableActions[(int)Action.Eat] = true;
+            break;
 		case State.Seek:
 			chooseActions = new Action[] {
                 Action.None,
@@ -413,19 +427,19 @@ public class PreyScript : Controller {
     /*
 	 * returns the reward according to the state and action 
 	 */
-    public override float reward(int state, int action)
+    public override int reward(int state, int action)
     {
-        float reward = 0f;
+        int reward = 0;
         if (intToState(state) != PreyScript.State.Dead)
         {
             if (action == (int)PreyScript.Action.Eat)
-                reward = 20f;
+                reward = 20;
             else
-                reward = 0f;
+                reward = 0;
         }
         else
         {
-            reward = -100f;
+            reward = -100;
         }
         return reward;
     } // end of R

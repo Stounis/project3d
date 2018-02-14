@@ -30,7 +30,7 @@ public class Controller : MonoBehaviour {
 
 	protected Rigidbody rigidbody;
 	protected Camera viewCamera;
-	protected Vector3 velocity;
+	public Vector3 velocity;
 	protected NavMeshAgent agent;
 
 	// Field Of View Variables
@@ -130,8 +130,42 @@ public class Controller : MonoBehaviour {
      * returns a reward according to state and action
      * >>ABSTRACT<<
      */
-    public virtual float reward(int state, int action) { return 0; }
+    public virtual int reward(int state, int action) { return 0; }
 
     public virtual bool isDead() { return false; }
+
+    /*
+     * test of collision with wall to stop controller
+     */
+    protected void OnCollisionEnter(Collision collision) {
+        if(collision.gameObject.tag == "Obstacle") {
+            moving = false;
+            rigidbody.velocity = Vector3.zero;
+        }
+    } // end of OnCollisionEnter
+
+    protected void OnCollisionStay(Collision collision) {
+        if(collision.gameObject.tag == "Obstacle") {
+            moving = false;
+            rigidbody.velocity = Vector3.zero;
+        }
+    }
+
+    /*
+     * works as a compass
+     * return an int according to where the controller looks
+     */
+    public int compass() {
+        float angle = transform.rotation.eulerAngles.y;
+
+        if (angle > 45 && angle <= 135)
+            return 1; // east
+        else if (angle > 135 && angle <= 225)
+            return 2; //south
+        else if (angle > 225 && angle <= 315)
+            return 3; // west
+        else      
+            return 0; // north
+    }
 
 } // end of Controller Class

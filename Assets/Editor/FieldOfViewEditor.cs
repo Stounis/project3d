@@ -28,6 +28,13 @@ public class FieldOfViewEditor : Editor {
             if (visibleEadible!=null)
 			    Handles.DrawLine (fow.transform.position, visibleEadible.position);
 		}
-	}
+
+        // Draw line between transform and wall
+        Handles.color = Color.black;
+        foreach (Vector3 wall in fow.visibleWalls) {
+            if (wall != null)
+                Handles.DrawLine(fow.transform.position, wall);
+        }
+    }
 
 }

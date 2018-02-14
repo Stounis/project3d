@@ -20,21 +20,20 @@ public class QLearning {
 
     ArrayList memory; // stores previous state/actions to update the q table
     int maxMemory = 60; // max number of state/actions stored in memory
+    int memoryRewardRed = 5;
+
+    ArrayList rewardList = new ArrayList();
+    int totalReward = 0;
 
     /*
 	 * Constructor
 	 */
     public QLearning(Controller c, StateArray sr, int asize) {
         controller = c;
-        //Q = new float[controller.stateSize,controller.actionSize];
         Q = new ArrayList();
         stateArray = sr;
         actionSize = asize;
         memory = new ArrayList();
-        // test
-        //Q [0,0] = 1f;
-        //Q [0,2] = 2f;
-        //Debug.Log (maxQ (0));
     } // end of Constructor
 
     /*
@@ -43,20 +42,49 @@ public class QLearning {
 	 */
     public void rl(ObjectState oldState, int action, ObjectState newState) {
 
-        updateStates();
+        updateStates(); // add state in the array if new state       
 
-        addMemory(oldState.getId(), action);
-
-        maintainMemory();
-        
         // Q(s,a) = Q(s,a) + a * (r(s,a) + g * maxQ(s') - Q(s,a)) 
         float q = getQvalue(oldState.getId(), action); //float q = Q[state,action];
         float maxq = maxQ(newState.getId()); //float maxQ = maxQ (state);
-        float r = controller.reward(oldState.getState(), action);
+        int r = controller.reward(oldState.getState(), action);
 
         float value = q + alpha * (r + gamma * maxq - q);//float value = q + alpha * (r + gamma * maxQ - q);
 
-        updateQvalue(oldState.getId(), action, value);
+        updateQvalue(oldState.getId(), action, value); // q[oldstate,action] = value
+
+        addMemory(oldState.getId(), action);
+        maintainMemory();
+
+        totalReward += r;
+
+        // repeat q process for memory
+        if (memory.Count > 1 && r != 0) {
+            for (int i = memory.Count - 2; i > 0; i--) {
+                if (r-memoryRewardRed > 0) {
+                    r -= memoryRewardRed;
+                } else if (r+memoryRewardRed < 0) {
+                    r += memoryRewardRed;
+                }
+                else {
+                    break;
+                }
+
+                int[] newestMem = (int[])memory[i+1]; // new memory
+                int newMemoryState = newestMem[0]; // new state
+
+                int[] oldestMem = (int[])memory[i]; // old memory
+                int oldMemoryState = oldestMem[0]; // old state
+                int oldMemoryAction = oldestMem[1]; // old action
+
+                float qMemory = getQvalue(oldMemoryState, oldMemoryAction); //float q = Q[state,action];
+                float maxQMemory = maxQ(newMemoryState); //float maxQ = maxQ (state);
+
+                float memoryValue = qMemory + alpha * (r + gamma * maxQMemory - qMemory);//float value = q + alpha * (r + gamma * maxQ - q);
+
+                updateQvalue(oldMemoryState, oldMemoryAction, memoryValue); // q[oldstate,action] = value
+            }
+        }
     } // end of rl
 
     void calculateQ() {
@@ -78,6 +106,13 @@ public class QLearning {
         mem[0] = state;
         mem[1] = action;
         memory.Add(mem);
+    } // end of addMemory
+
+    /*
+     * resets the memory arraylist
+     */
+     public void resetMemory() {
+        memory.Clear();
     }
 
     /*
@@ -90,6 +125,31 @@ public class QLearning {
             }
         }
     } // end of maintain memory
+
+    /*
+     * finish run by storing the totalreward of the run in the reward list
+     * and reseting the total reward to 0
+     */
+     public void saveReward() {
+        rewardList.Add(totalReward);
+        totalReward = 0;
+     }
+
+    /*
+     * prints the reward list as a string
+     */
+     public string printRewardList() {
+        string m = "";
+
+        for(int i=0; i<rewardList.Count; i++) {
+            if (i != rewardList.Count - 1)
+                m = m + rewardList[i] + " ";
+            else
+                m = m + rewardList[i];
+        }
+
+        return m;
+    } // end of printReward
 
     /*
      *  returns the best or a random action according to the variable
@@ -223,7 +283,10 @@ public class QLearning {
         string message = "";
         foreach (float[] row in Q) {            
             for (int i = 0; i < row.Length; i++) {
-                message = message + " " + row[i];
+                if (i == 0)
+                    message = message + row[i];
+                else
+                    message = message + " " + row[i];
             }
             message = message + "\r\n";
         }

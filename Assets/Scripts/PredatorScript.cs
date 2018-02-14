@@ -327,16 +327,16 @@ public class PredatorScript : Controller {
     /*
 	 * returns the reward according to the state and action 
 	 */
-    public override float reward(int state, int action) {
-        float reward = 0f;
+    public override int reward(int state, int action) {
+        int reward = 0;
         if (intToState(state) != PredatorScript.State.Dead) {
             if (action == (int)PredatorScript.Action.Eat)
-                reward = 100f;
+                reward = 100;
             else
                 reward = 0;
         }
         else
-            reward = -100f;
+            reward = -100;
         return reward;
     }
 

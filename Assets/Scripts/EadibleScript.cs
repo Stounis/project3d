@@ -17,7 +17,7 @@ public class EadibleScript : MonoBehaviour {
 		if (other.gameObject.tag == "Predator" || other.gameObject.tag=="Prey") {
 			Controller c = other.gameObject.GetComponent<Controller> ();
 			c.addEadibleObject (this.gameObject);
-			Debug.Log (c.id + " entered");
+			//Debug.Log (c.id + " entered");
 		}
 	}
 
@@ -31,7 +31,7 @@ public class EadibleScript : MonoBehaviour {
 		if (other.gameObject.tag == "Predator" || other.gameObject.tag=="Prey") {
 			Controller c = other.gameObject.GetComponent<Controller> ();
 			c.removeEadibleObject (this.gameObject);
-			Debug.Log (c.id + " exited");
+			//Debug.Log (c.id + " exited");
 		}
 	}
 }

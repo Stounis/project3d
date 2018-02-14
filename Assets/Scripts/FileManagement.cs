@@ -36,11 +36,12 @@ public class FileManagement {
     /*
      * reads the q table from a file
      */
-    public ArrayList readFileStates(string path) {
+    public ArrayList readFileStates(string directoryPath, string fileName) {
 
         char delimeter = ' ';
 
-        //string path = "Assets/Results/test.txt";
+        int filenum = Directory.GetFiles(directoryPath, "*.txt").Length-1;
+        string path = directoryPath + fileName + filenum + ".txt";
         StreamReader reader = new StreamReader(path);
         ArrayList list = new ArrayList();
        
@@ -61,11 +62,12 @@ public class FileManagement {
     /*
     * reads the states table from a file
     */
-    public ArrayList readFileQ(string path) {
+    public ArrayList readFileQ(string directoryPath, string fileName) {
 
         char delimeter = ' ';
 
-        //string path = "Assets/Results/test.txt";
+        int filenum = Directory.GetFiles(directoryPath, "*.txt").Length - 1;
+        string path = directoryPath + fileName + filenum + ".txt";
         StreamReader reader = new StreamReader(path);
         ArrayList list = new ArrayList();
 

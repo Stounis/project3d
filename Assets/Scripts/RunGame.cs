@@ -30,6 +30,8 @@ public class RunGame : MonoBehaviour {
     // Use this for initialization
     void Start () {
 
+        Application.runInBackground = true;
+
         //instantiate prey
         prey = Instantiate(preyprefab) as GameObject;
         Controller preyController = prey.GetComponent<Controller>();
@@ -55,8 +57,8 @@ public class RunGame : MonoBehaviour {
         if (loadFiles) {
             if (!loaded) {
                 loaded = true;
-                preyStateArray.loadStates(fileManager.readFileStates("Assets/Results/Prey/solotrain/states/preysoloStates1.txt"));
-                preyQlearning.loadQTable(fileManager.readFileQ("Assets/Results/Prey/solotrain/Qtable/preysoloQ1.txt"));
+                preyStateArray.loadStates(fileManager.readFileStates("Assets/Results/Prey/solotrain/states/", "preysoloStates"));
+                preyQlearning.loadQTable(fileManager.readFileQ("Assets/Results/Prey/solotrain/Qtable/", "preysoloQ"));
             }
         }
 
@@ -100,6 +102,7 @@ public class RunGame : MonoBehaviour {
         prey = Instantiate(preyprefab) as GameObject;
         Controller preyController = prey.GetComponent<Controller>();
         preyQlearning.setController(preyController);
+        preyQlearning.resetMemory();
         preyController.stateArray = preyStateArray;
         preyController.qAlgorithm = preyQlearning;
         preyController.keyboard = false;
@@ -109,6 +112,7 @@ public class RunGame : MonoBehaviour {
         predator = Instantiate(predatorprefab) as GameObject;
         Controller predatorController = predator.GetComponent<Controller>();
         predatorQlearning.setController(predatorController);
+        predatorQlearning.resetMemory();
         predatorController.stateArray = predatorStateArray;
         predatorController.qAlgorithm = predatorQlearning;
 

@@ -8,6 +8,7 @@ TagManager:
   - Prey
   - Eadible
   - Sound
+  - Obstacle
   layers:
   - Default
   - TransparentFX

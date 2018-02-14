@@ -11,10 +11,14 @@ public class FieldOfView : MonoBehaviour {
 	public LayerMask targetMask; // enemy, prey or predator
 	public LayerMask eadibleMask; // eadible objects
 	public LayerMask obstacleMask; // obstacles
+    public LayerMask nothingMask; //test
 
 	[HideInInspector]
 	public List<Transform> visibleTargets = new List<Transform>();
 	public List<Transform> visibleEadibles = new List<Transform> ();
+    public List<Vector3> visibleWalls = new List<Vector3>(); // test
+
+    public float minDstToWall; // test
 
 	public float meshResolution;
 	public int edgeResolveIterations;
@@ -29,7 +33,9 @@ public class FieldOfView : MonoBehaviour {
 		viewMeshFilter.mesh = viewMesh;
 
 		StartCoroutine ("FindTargetsWithDelay", .2f);
-	}
+
+        minDstToWall = viewRadius;
+    }
 
 
 	IEnumerator FindTargetsWithDelay(float delay) {
@@ -78,11 +84,22 @@ public class FieldOfView : MonoBehaviour {
 		}
 	}
 
-	void DrawFieldOfView() {
+    /*
+     * distance between controller and a wall closest point
+     */
+    void resetClosestToWall() {
+        visibleWalls.Clear();
+        minDstToWall = viewRadius;
+    }
+
+    void DrawFieldOfView() {
 		int stepCount = Mathf.RoundToInt(viewAngle * meshResolution);
 		float stepAngleSize = viewAngle / stepCount;
 		List<Vector3> viewPoints = new List<Vector3> ();
 		ViewCastInfo oldViewCast = new ViewCastInfo ();
+
+        resetClosestToWall(); // test
+
 		for (int i = 0; i <= stepCount; i++) {
 			float angle = transform.eulerAngles.y - viewAngle / 2 + stepAngleSize * i;
 			ViewCastInfo newViewCast = ViewCast (angle);
@@ -138,7 +155,7 @@ public class FieldOfView : MonoBehaviour {
 		for (int i = 0; i < edgeResolveIterations; i++) {
 			float angle = (minAngle + maxAngle) / 2;
 			ViewCastInfo newViewCast = ViewCast (angle);
-
+                        
 			bool edgeDstThresholdExceeded = Mathf.Abs (minViewCast.dst - newViewCast.dst) > edgeDstThreshold;
 			if (newViewCast.hit == minViewCast.hit && !edgeDstThresholdExceeded) {
 				minAngle = angle;
@@ -158,7 +175,13 @@ public class FieldOfView : MonoBehaviour {
 		RaycastHit hit;
 
 		if (Physics.Raycast (transform.position, dir, out hit, viewRadius, obstacleMask)) {
-			return new ViewCastInfo (true, hit.point, hit.distance, globalAngle);
+            //test
+            if (minDstToWall > hit.distance) {
+                resetClosestToWall();
+                minDstToWall = hit.distance;
+                visibleWalls.Add(hit.point);
+            }
+            return new ViewCastInfo (true, hit.point, hit.distance, globalAngle);
 		} else {
 			return new ViewCastInfo (false, transform.position + dir * viewRadius, viewRadius, globalAngle);
 		}
