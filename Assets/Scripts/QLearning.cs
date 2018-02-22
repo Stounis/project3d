@@ -20,7 +20,7 @@ public class QLearning {
 
     ArrayList memory; // stores previous state/actions to update the q table
     int maxMemory = 60; // max number of state/actions stored in memory
-    int memoryRewardRed = 5;
+    int memoryRewardRed = 20;
 
     ArrayList rewardList = new ArrayList();
     int totalReward = 0;
@@ -47,7 +47,7 @@ public class QLearning {
         // Q(s,a) = Q(s,a) + a * (r(s,a) + g * maxQ(s') - Q(s,a)) 
         float q = getQvalue(oldState.getId(), action); //float q = Q[state,action];
         float maxq = maxQ(newState.getId()); //float maxQ = maxQ (state);
-        int r = controller.reward(oldState.getState(), action);
+        int r = controller.reward(newState.getState(), action);
 
         float value = q + alpha * (r + gamma * maxq - q);//float value = q + alpha * (r + gamma * maxQ - q);
 
@@ -69,6 +69,7 @@ public class QLearning {
                 else {
                     break;
                 }
+                //r = 0; //test
 
                 int[] newestMem = (int[])memory[i+1]; // new memory
                 int newMemoryState = newestMem[0]; // new state
@@ -192,7 +193,7 @@ public class QLearning {
         int state = 0;
         bool[] possibleActions = controller.getAvailableActions(s.getState());
 
-        for (int i =0; i<10; i++) {
+        for (int i =0; i<possibleActions.Length; i++) {
             int random = Random.Range(0, possibleActions.Length - 1);
             if (possibleActions[random]) {
                 state = random;

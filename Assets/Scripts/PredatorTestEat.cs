@@ -6,15 +6,19 @@ public class PredatorTestEat : MonoBehaviour {
 
 	void OnTriggerEnter(Collider other){
 		if (other.gameObject.tag == "Prey") {
-			PredatorScript script = transform.GetComponentInParent<PredatorScript>();
-			script.addPreyToList (other.gameObject);
+            if (!other.transform.GetComponent<Controller>().isDead()) {
+                PredatorScript script = transform.GetComponentInParent<PredatorScript>();
+                script.addPreyToList(other.gameObject);
+            }
 		}
 	}
 
 	void OnTriggerExit(Collider other){
 		if(other.gameObject.tag=="Prey"){
-			PredatorScript script = transform.GetComponentInParent<PredatorScript> ();
-			script.removePreyFromList (other.gameObject);
+            if (!other.transform.GetComponent<Controller>().isDead()) {
+                PredatorScript script = transform.GetComponentInParent<PredatorScript>();
+                script.removePreyFromList(other.gameObject);
+            }
 		}
 	}
 }

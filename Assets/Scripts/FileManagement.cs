@@ -1,7 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEditor;
+//using UnityEditor;
 using System.IO;
 
 public class FileManagement {
@@ -44,18 +44,19 @@ public class FileManagement {
         string path = directoryPath + fileName + filenum + ".txt";
         StreamReader reader = new StreamReader(path);
         ArrayList list = new ArrayList();
-       
-        // read file
-        while (reader.Peek() > 0) {
-            string[] line = reader.ReadLine().Split(delimeter);
-            int[] input = new int[line.Length];
-            for (int i = 0; i < line.Length; i++) {
-                int.TryParse(line[i], out input[i]);
-            }
-            list.Add(input);
-        }
-        reader.Close();
 
+        if (filenum >= 0) { // check if file exist
+            // read file
+            while (reader.Peek() > 0) {
+                string[] line = reader.ReadLine().Split(delimeter);
+                int[] input = new int[line.Length];
+                for (int i = 0; i < line.Length; i++) {
+                    int.TryParse(line[i], out input[i]);
+                }
+                list.Add(input);
+            }
+            reader.Close();
+        }
         return list;
     } // end of readFileQ
 
@@ -71,17 +72,18 @@ public class FileManagement {
         StreamReader reader = new StreamReader(path);
         ArrayList list = new ArrayList();
 
-        // read file
-        while (reader.Peek() > 0) {
-            string[] line = reader.ReadLine().Split(delimeter);
-            float[] input = new float[line.Length];
-            for (int i = 0; i < line.Length; i++) {
-                float.TryParse(line[i], out input[i]);
+        if (filenum >= 0) {
+            // read file
+            while (reader.Peek() > 0) {
+                string[] line = reader.ReadLine().Split(delimeter);
+                float[] input = new float[line.Length];
+                for (int i = 0; i < line.Length; i++) {
+                    float.TryParse(line[i], out input[i]);
+                }
+                list.Add(input);
             }
-            list.Add(input);
+            reader.Close();
         }
-        reader.Close();
-
         return list;
     } // end of readFile
 

@@ -9,6 +9,7 @@ TagManager:
   - Eadible
   - Sound
   - Obstacle
+  - Waypoint
   layers:
   - Default
   - TransparentFX

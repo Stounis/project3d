@@ -8,21 +8,26 @@ public class PreyScript : Controller {
 	//states and actions
 	enum State {Idle, Seek, Flee, Dead}; // possible states
 	public int stateSize = System.Enum.GetValues(typeof(State)).Length;
-	enum Action {None, RotateLeft, RotateRight, LookAtObject, MoveForward, MoveBackwards, Stop, FollowObject, Eat, Idle, Seek, Flee}; // possible actions
-	public int actionSize = System.Enum.GetValues(typeof(Action)).Length;
+	enum Action {None, RotateLeft, RotateRight, LookAtObject, LookAtSound, MoveForward, MoveBackwards, Stop, FollowObject, Eat, Idle, Seek, Flee}; // possible actions
+    public int actionSize = System.Enum.GetValues(typeof(Action)).Length;
 	State currentState;
 	Action currentAction;
     ObjectState oldState = null;
 
-    public int testCompass = 0;
+    public int compass = 0;
 
 	//speed
 	public float FleeMovepSpeed = 6;
 	public float SeekMoveSpeed = 4;
+    public float LowSpeed = 2;
 
 	Vector3 destination; // agent destination
 	Vector3 movingDir; // moving direction
-    Vector3 nextPosition; // test
+
+    //distances
+    float eadibleDistance;
+    float targetDistance;
+    float wallDistance;
 
 	// rotation reduction speed
 	float initialAngle;
@@ -32,12 +37,24 @@ public class PreyScript : Controller {
 	void Start () {
 		rigidbody = GetComponent<Rigidbody> ();
 		agent = GetComponent<NavMeshAgent> ();
-		initialAngle = transform.rotation.y; // the object only rotates on the y axis
+		initialAngle = transform.rotation.eulerAngles.y; // the object only rotates on the y axis
 		rotation = GetComponent<Rotation> ();
 		currentState = State.Seek;
 
-        nextPosition = transform.position;
-	} // end of Start
+        float eadibleDistance = GetComponent<FieldOfView>().viewRadius;
+        float targetDistance = GetComponent<FieldOfView>().minDstToTarget;
+        float wallDistance = GetComponent<FieldOfView>().minDstToWall;
+
+        if (dummy) {
+            GameObject[] ways = GameObject.FindGameObjectsWithTag("Waypoint");
+            points = new Transform[ways.Length];
+            for (int i = 0; i < ways.Length; i++) {
+                points[i] = ways[i].transform;
+            }
+            agent.autoBraking = false;
+            GotoNextPoint();
+        }
+    } // end of Start
 
     /*
 	 * Updates every frame
@@ -45,11 +62,16 @@ public class PreyScript : Controller {
     void Update() {
 
         //test compass
-        testCompass = compass();
+        compass = compass();
         
-        if (currentState == State.Dead)
+        
+
+        if (dummy) { // dummy mode
+            dummyBehaviour();
             return;
-        hunger -= 0.01f;
+        }
+        if (hunger>0)
+            hunger -= 0.01f;
 
         if (stamina < 25 || hunger > 75)
         {
@@ -65,14 +87,15 @@ public class PreyScript : Controller {
             case State.Idle:
                 rest(0.1f);
                 stop();
+                availableSpeed = 0;
                 break;
             case State.Seek:
                 consumeStamina(0.01f);
-                moveSpeed = SeekMoveSpeed;
+                availableSpeed = SeekMoveSpeed;
                 break;
             case State.Flee:
                 consumeStamina(0.1f);
-                moveSpeed = FleeMovepSpeed;
+                availableSpeed = FleeMovepSpeed;
                 break;
         }
 
@@ -96,11 +119,14 @@ public class PreyScript : Controller {
         if (oldState != null && moveToNewState)
         {
             qAlgorithm.rl(oldState, (int)currentAction, curState);
-            //qAlgorithm.printQTable();
         }
 
         bool[] availableActions = getAvailableActions((int)currentState); // get the available actions
-        //Action action = Action.None; // testing actions with keyboard
+
+        if (currentState == State.Dead) {
+            dead = true;
+            //return;
+        }           
 
         if (keyboard)
         {// if boolean variable is true use the keyboard commands
@@ -113,56 +139,56 @@ public class PreyScript : Controller {
             selectAction((int)action);
         }
 
-        //Debug.Log("selected Action: " + action);
-		//selectAction ((int)action);
         oldState = curState;
+
 	} // end of Update
 
 	/*
 	 * Updates Physics 
 	 */
 	void FixedUpdate(){
-		// reducing the speed according to the rotation of the object
-		if (agent.enabled) {
-			if (agent.enabled && Vector3.Distance(transform.position, destination) <= 1f) {
-				agent.destination = transform.position;
-				agent.enabled = false;
-			}
-		} else {
-			if (moving) {
-                reducedSpeed = moveSpeed - ((moveSpeed / 2) * Mathf.Abs((initialAngle - transform.rotation.y) % 180));
-                rigidbody.velocity = movingDir * reducedSpeed;                
-            } else {
-				rigidbody.velocity = transform.forward * 0;
-			}
-		}
-
-        velocity = rigidbody.velocity;// TEST
+        // reducing the speed according to the rotation of the object
+        if (!dummy) {
+            if (stamina < 10f)
+                availableSpeed = 2f;
+            moveSpeed = availableSpeed;
+            if (agent.enabled) {
+                if (agent.enabled && Vector3.Distance(transform.position, destination) <= 1f) {
+                    agent.destination = transform.position;
+                    agent.enabled = false;
+                }
+            }
+            else {
+                if (moving) {
+                    reducedSpeed = moveSpeed - ((moveSpeed / 2) * Mathf.Abs((initialAngle - transform.rotation.eulerAngles.y) % 360) / 360);
+                    rigidbody.velocity = movingDir * reducedSpeed;
+                }
+                else {
+                    rigidbody.velocity = transform.forward * 0;
+                }
+            }
+        } 
 	} // end of Fixed-Update
-
-    /*
-     * returns true if the agent is dead, false if its not
-     */
-    public override bool isDead()
-    {
-        return State.Dead == currentState;
-    } // end of is dead;
 
     /*
 	 * Look At sound Source
 	 */
     void lookAtSound(){
-		/*if (soundList.Count > 0) {
+		if (soundList.Count > 0) {
 			Vector3 origin = soundList[0];
-			rotation.lookAtObject(origin);
-		} */
+			rotation.lookAtObject(origin,true);
+		} 
+    } // end of lookAtSound
 
-		//testing
-		if(GetComponent<FieldOfView>().visibleEadibles.Count>0){
-			Vector3 eadiblePosition = GetComponent<FieldOfView> ().visibleEadibles [0].position;
-			rotation.lookAtObject (eadiblePosition);
-		}
-	}
+    /*
+     * look at eadible object
+     */
+     void lookAtEadible() {
+        if (GetComponent<FieldOfView>().visibleEadibles.Count > 0) {
+            Vector3 eadiblePosition = GetComponent<FieldOfView>().visibleEadibles[0].position;
+            rotation.lookAtObject(eadiblePosition,false);
+        }
+    }
 
 	/*
 	 * Action Move towards the movingDir (direction)
@@ -171,7 +197,7 @@ public class PreyScript : Controller {
 	void moveForward(){
 		agent.enabled = false;
 		movingDir = transform.forward;
-		initialAngle = transform.rotation.y;
+		initialAngle = transform.rotation.eulerAngles.y;
 		moving = true;
 	}
 
@@ -181,8 +207,7 @@ public class PreyScript : Controller {
 	void moveBackward(){
 		agent.enabled = false;
 		movingDir = -transform.forward;
-        initialAngle = Quaternion.Inverse(transform.rotation).y;
-        //initialAngle = (Quaternion.Inverse(transform.rotation)*transform.rotation).y;
+        initialAngle = (transform.rotation.eulerAngles.y + 180) % 360;
 		moving = true;
 	}
 
@@ -193,9 +218,9 @@ public class PreyScript : Controller {
         if(!agent.enabled)
 		    stop ();
 		agent.enabled = true;
+        agent.speed = moveSpeed;
 		if (GetComponent<FieldOfView>().visibleEadibles.Count > 0) {
-			Transform eadible = (Transform)GetComponent<FieldOfView>().visibleEadibles [0];
-			Vector3 eadiblePosition = eadible.position;
+            Vector3 eadiblePosition = closestEadible();
 			agent.SetDestination (eadiblePosition);
 			destination = eadiblePosition;
 		}
@@ -218,9 +243,16 @@ public class PreyScript : Controller {
 			GameObject e = (GameObject)eadibleList [0];
 			eadibleList.RemoveAt (0);
 			Destroy (e);
-			hunger += 15;
+			hunger += 10;
 		}
 	} // end of eat
+
+    /*
+     * damaged by the predator
+     */
+     public void damage() {
+        Dead();
+    }
 
 	/*
 	 * Selects the next action
@@ -236,8 +268,11 @@ public class PreyScript : Controller {
 			rotation.RotateRight ();
 			break;
 		case Action.LookAtObject:
-			lookAtSound ();
+			lookAtEadible ();
 			break;
+        case Action.LookAtSound:
+            lookAtSound();
+            break;
 		case Action.MoveForward:
 			moveForward ();
 			break;
@@ -249,6 +284,7 @@ public class PreyScript : Controller {
 			break;
 		case Action.FollowObject:
 			moveToEadible ();
+                Debug.Log("agent enabled");
 			break;
 		case Action.Eat:
 			eat ();
@@ -299,7 +335,7 @@ public class PreyScript : Controller {
                 if (GetComponent<FieldOfView>().visibleEadibles.Count > 0) { // move towards object rule
                     if(!agent.enabled)
                         availableActions[(int)Action.FollowObject] = true;
-                    availableActions[(int)Action.LookAtObject] = true;
+                    //availableActions[(int)Action.LookAtObject] = true;
                 }
                 if (moving || agent.enabled)
                     availableActions[(int)Action.Stop] = true;
@@ -322,9 +358,12 @@ public class PreyScript : Controller {
             return availableActions;
 			break;
 		}
-		if (GetComponent<FieldOfView>().visibleEadibles.Count>0){ // test, replace eadible with sound source
+		/*if (GetComponent<FieldOfView>().visibleEadibles.Count>0){ // look at eadible object
 			availableActions [(int)Action.LookAtObject] = true;
-		}
+		}*/
+        if (soundList.Count > 0) {  // look at sound source
+            availableActions[(int)Action.LookAtSound] = true;
+        }
 		if (chooseActions != null) {
 			for (int i = 0; i < chooseActions.Length; i++) {
 				availableActions [(int)chooseActions [i]]=true;
@@ -371,58 +410,19 @@ public class PreyScript : Controller {
 	 */
 	int[] generateStates(){
 
-		int[] stateArray  = new int[9];
+		int[] stateArray  = new int[10];
 		stateArray [0] = (int)currentState; // current state
-		//stateArray [1] = (int)currentAction; // current action
-		stateArray [1] = (int)System.Convert.ToSingle (moving); // is it moving
-        stateArray [2] = (int)System.Convert.ToSingle(agent.enabled);
-        stateArray [3] = (int)System.Convert.ToSingle (soundList.Count>0); // length of soundlist
-		stateArray [4] = (int)System.Convert.ToSingle (GetComponent<FieldOfView>().visibleTargets.Count>0); // size of visible targets
-		stateArray [5] = (int)System.Convert.ToSingle (GetComponent<FieldOfView>().visibleEadibles.Count>0); // size of visible targets
-        stateArray [6] = (int)System.Convert.ToSingle(eadibleList.Count > 0); // contact with eadibles
-        stateArray [7] = staminaLevel(); // stamina level
-		stateArray [8] = hungerLevel (); // hunger level
+        stateArray [1] = compass; // the rotation that the object is currently looking
+		stateArray [2] = (int)System.Convert.ToSingle (moving); // is it moving
+        stateArray [3] = (int)System.Convert.ToSingle(agent.enabled); // agent
+        stateArray [4] = (int)System.Convert.ToSingle (soundList.Count>0); // length of soundlist
+		stateArray [5] = (int)System.Convert.ToSingle (GetComponent<FieldOfView>().visibleTargets.Count>0); // size of visible targets
+		stateArray [6] = (int)System.Convert.ToSingle (GetComponent<FieldOfView>().visibleEadibles.Count>0); // size of visible targets
+        stateArray [7] = (int)System.Convert.ToSingle(eadibleList.Count > 0); // contact with eadibles
+        stateArray [8] = staminaLevel(); // stamina level
+		stateArray [9] = hungerLevel (); // hunger level
 		return stateArray;
 	} // end of generateStates
-
-	/*
-	 * sets stamina as a continuous variable
-	 * that is split into 4 different categories
-	 */
-	int staminaLevel(){
-		/*int staminaGroup = 0;
-		if (stamina >= 75)
-			staminaGroup = 3;
-		else if (stamina >= 50 && stamina < 75)
-			staminaGroup = 2;
-		else if (stamina >= 25 && stamina < 50)
-			staminaGroup = 1;
-		else
-			staminaGroup = 0;*/
-
-		return (int)stamina/10;
-	} // end of staminaLevel
-
-	/*
-	 * sets hunger level as a continuous variable
-	 * that is split into 4 different categories
-	 */
-	int hungerLevel(){
-		/*int hungerGroup = 0;
-
-        if (hunger > 100)
-            hungerGroup = 4;
-		else if (hunger >= 75 && hunger <= 100)
-			hungerGroup = 3;
-		else if (hunger >= 50 && hunger < 75)
-			hungerGroup = 2;
-		else if (hunger >= 25 && hunger < 50)
-			hungerGroup = 1;
-		else
-			hungerGroup = 0;*/
-
-		return (int)hunger/10;
-	} // end of hungerLevel
 
     /*
 	 * returns the reward according to the state and action 
@@ -433,13 +433,15 @@ public class PreyScript : Controller {
         if (intToState(state) != PreyScript.State.Dead)
         {
             if (action == (int)PreyScript.Action.Eat)
-                reward = 20;
-            else
+                reward = 100;
+            else {
                 reward = 0;
+            }                
         }
         else
         {
             reward = -100;
+            Debug.Log("reward -100");
         }
         return reward;
     } // end of R
@@ -468,6 +470,33 @@ public class PreyScript : Controller {
         }
         return Action.None;
     } // end of intToAction
+
+    /*
+     * find the closest eadible object in FOV
+     */
+     Vector3 closestEadible() {
+        Vector3 eadiblePosition = transform.position;
+        float distance = GetComponent<FieldOfView>().viewRadius;
+
+        if (GetComponent<FieldOfView>().visibleEadibles.Count > 0) {
+            if (GetComponent<FieldOfView>().visibleEadibles[0] != null) {
+                if (GetComponent<FieldOfView>().visibleEadibles.Count > 1) {
+                    for (int i = 1; i < GetComponent<FieldOfView>().visibleEadibles.Count; i++) {
+                        Transform eadible = GetComponent<FieldOfView>().visibleEadibles[i];
+                        if (eadible != null) {
+                            if (Vector3.Distance(transform.position, eadible.position) < distance) {
+                                eadiblePosition = eadible.position;
+                                distance = Vector3.Distance(transform.position, eadible.position);
+                            }
+                        }
+                    }
+                }
+            }
+            eadiblePosition = GetComponent<FieldOfView>().visibleEadibles[0].position;
+            distance = Vector3.Distance(transform.position, eadiblePosition);           
+        }
+        return eadiblePosition;
+    } // end of closestEadible
 
     PreyScript.Action keyboardActions(bool[] availableActions) {
         Action action = Action.None;
@@ -533,4 +562,28 @@ public class PreyScript : Controller {
         }
         return action;
     } //end of keyboard actions
+
+    /*
+     * follows waypoints and flees to the sight of the enemy
+     */
+    void dummyBehaviour() {
+        if (!agent.pathPending && agent.remainingDistance < 0.5f)
+            GotoNextPoint();
+    } // end of dummy behaviour
+
+    /*
+     * follows waypoints
+     */
+    void GotoNextPoint() {
+        // Returns if no points have been set up
+        if (points.Length == 0)
+            return;
+
+        // Set the agent to go to the currently selected destination.
+        agent.destination = points[destPoint].position;
+
+        // Choose the next point in the array as the destination,
+        // cycling to the start if necessary.
+        destPoint = (destPoint + 1) % points.Length;
+    } // end of gotonextpoint
 } // end of PreyScript Class

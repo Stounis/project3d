@@ -8,11 +8,18 @@ public class Controller : MonoBehaviour {
     //keyboard
     public bool keyboard;
 
+    // dummy stuff
+    public bool dummy = false; // auto mode, following waypoints
+    protected Transform[] points;
+    protected int destPoint = 0;
+
     public float moveSpeed = 6;
+    protected float availableSpeed;
 	public float weight = 50;
 	public float stamina = 100; // used for walk, run etc
 	public float hunger = 50;
 	public string id;
+    public bool dead = false;
 
     //State and Action sizes
     //public int stateSize;
@@ -54,6 +61,14 @@ public class Controller : MonoBehaviour {
 	public string getId(){
 		return id;
 	}
+    
+    public bool isDead() {
+        return dead;
+    }
+
+    public bool agentEnabled() {
+        return agent.enabled;
+    }
 
     /*
      * given by the runGame
@@ -132,8 +147,6 @@ public class Controller : MonoBehaviour {
      */
     public virtual int reward(int state, int action) { return 0; }
 
-    public virtual bool isDead() { return false; }
-
     /*
      * test of collision with wall to stop controller
      */
@@ -150,6 +163,22 @@ public class Controller : MonoBehaviour {
             rigidbody.velocity = Vector3.zero;
         }
     }
+
+    /*
+	 * sets stamina as a continuous variable
+	 * that is split into 4 different categories
+	 */
+    protected int staminaLevel() {
+        return (int)stamina / 10;
+    } // end of staminaLevel
+
+    /*
+	 * sets hunger level as a continuous variable
+	 * that is split into 4 different categories
+	 */
+    protected int hungerLevel() {
+        return (int)hunger / 10;
+    } // end of hungerLevel
 
     /*
      * works as a compass

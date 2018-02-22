@@ -11,6 +11,7 @@ public class Rotation : MonoBehaviour {
 	public bool lookLeft = false;
 	public bool lookRight = false;
 	public bool lookObject = false;
+    bool lookSound = false;
 
 	Vector3 objectPosition;
 
@@ -53,6 +54,10 @@ public class Rotation : MonoBehaviour {
 				transform.rotation = Quaternion.Slerp (transform.rotation, lookRotation, Time.deltaTime * speed);
 			} else {
 				lookObject = false;
+                if (lookSound) {
+                    GetComponent<Controller>().soundList.RemoveAt(0);
+                    lookSound = false;
+                }
 			}
 		}
 	} // end of Update
@@ -68,13 +73,14 @@ public class Rotation : MonoBehaviour {
 	/*
 	 * Might not be used
 	 */ 
-	public void lookAtObject(Vector3 origin) {
+	public void lookAtObject(Vector3 origin, bool sound) {
 		//transform.LookAt (origin);
 
 		lookLeft = false;
 		lookRight = false;
 		lookObject = true;
 
+        lookSound = sound;
 		objectPosition = origin;
 	}
 

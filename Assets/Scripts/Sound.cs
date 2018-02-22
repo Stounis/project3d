@@ -20,11 +20,16 @@ public class Sound : MonoBehaviour {
 		transform.rotation = this.GetComponentInParent<Transform> ().rotation;
 
 		bool moving = GetComponentInParent<Controller> ().moving;
+        bool agent = GetComponentInParent<Controller>().agentEnabled();
 		float speed = GetComponentInParent<Controller> ().reducedSpeed;
-		if (moving && speed>2) {
-			collider.radius = speed;
-			silent = false;
-		} else {
+        if (moving && speed > 2) {
+            collider.radius = speed;
+            silent = false;
+        }
+        else if (agent) {
+            collider.radius = GetComponentInParent<Controller>().moveSpeed;
+            silent = false;
+        } else {
 			collider.radius = 0.0f;
 			silent = true;
 		}

@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
-using UnityEditor;
 
 public class PredatorScript : Controller {
 
@@ -27,56 +26,98 @@ public class PredatorScript : Controller {
 	float initialAngle;
 
 	//rotate variables
-	int rotateSpeed = 75;
 	bool spotted = false;
 	Rotation rotation;
 
 
 	// Use this for initialization
 	void Start () {
-		rigidbody = GetComponent<Rigidbody> ();
-		agent = GetComponent<NavMeshAgent> ();
-		rotation = GetComponent<Rotation> ();
-		currentState = State.Seek;
-		initialAngle = transform.rotation.y;        
+        rigidbody = GetComponent<Rigidbody>();
+        agent = GetComponent<NavMeshAgent>();
+        initialAngle = transform.rotation.eulerAngles.y; // the object only rotates on the y axis
+        rotation = GetComponent<Rotation>();
+        currentState = State.Seek;
+
+        if (dummy) {
+            GameObject[] ways = GameObject.FindGameObjectsWithTag("Waypoint");
+            points = new Transform[ways.Length];
+            for (int i = 0; i < ways.Length; i++) {
+                points[i] = ways[i].transform;
+            }
+            agent.autoBraking = false;
+            GotoNextPoint();
+        }
     }
 	
 	// Update is called once per frame
 	void Update () {
 
-		if (agent.enabled && Vector3.Distance(transform.position, destination) <= 1f) {
-			agent.destination = transform.position;
-			agent.enabled = false;
-		}
+        if (currentState == State.Dead)
+            return;
 
-		switch(currentState){
+        if (dummy) {
+            dummyBehaviour();
+            return;
+        }
+        hunger -= 0.01f;
+
+        if (stamina < 25 || hunger > 75) {
+            moveSpeed = 2f;
+        }
+
+        if (hunger < 0) { // starved to death or sploded from too much food
+            Dead();
+        }
+
+        switch (currentState){
 		case State.Idle:
 			rest (0.01f);
 			break;
 		case State.Seek:
 			consumeStamina (0.01f);
+            moveSpeed = SeekMoveSpeed;
 			break;
 		case State.Attack:
 			consumeStamina (0.3f);
+            moveSpeed = AttackMoveSpeed;     
 			break;
 		}
 
-		//rotate ();
-		changeFieldOfView ();
+        int[] states = generateStates();
+        ObjectState curState = stateArray.findState(states);
+        if (curState == null)   // check that state exist 
+            curState = stateArray.addState(states);
 
-		if (Input.GetKey(KeyCode.N)){
-			eat ();
-		}
+        // debug
+        bool moveToNewState = false;
+        if (oldState != null) {
+            if (oldState.getId() != curState.getId()) {
+                //Debug.Log("current state: " + curState.getId());
 
-		if(Input.GetKey(KeyCode.M)){
-			lookAtSound ();			
-		}
+                moveToNewState = true;
+            }
+        }
 
-		// starved to death, rip
-		if (hunger < 0) {
-			Dead ();
-		}
-		
+        //Calculate Q using the previous objstate,action and the current objstate
+        if (oldState != null && moveToNewState) {
+            qAlgorithm.rl(oldState, (int)currentAction, curState);
+        }
+
+        bool[] availableActions = getAvailableActions((int)currentState); // get the available actions
+
+        if (keyboard) {// if boolean variable is true use the keyboard commands
+            Action action = keyboardActions(availableActions);
+            selectAction((int)action);
+        }
+        else /*if (moveToNewState)*/ {
+            Action action = intToAction(qAlgorithm.nextAction(curState));// get best action according to q table
+            //Debug.Log("selected action: " + action);
+            selectAction((int)action);
+        }
+
+        oldState = curState;
+
+        changeFieldOfView();		
 	} // end of Update
 
 	/*
@@ -84,35 +125,22 @@ public class PredatorScript : Controller {
 	 */
 	void FixedUpdate() {
         // reducing the speed according to the rotation of the object
-        if (agent.enabled)
-        {
-            if (agent.enabled && Vector3.Distance(transform.position, destination) <= 1f)
-            {
+        if (agent.enabled) {
+            if (agent.enabled && Vector3.Distance(transform.position, destination) <= 1f) {
                 agent.destination = transform.position;
                 agent.enabled = false;
             }
         }
-        else
-        {
-            if (moving)
-            {
-                reducedSpeed = moveSpeed - ((moveSpeed / 2) * Mathf.Abs((initialAngle - transform.rotation.y) % 180));
+        else {
+            if (moving) {
+                reducedSpeed = moveSpeed - ((moveSpeed / 2) * Mathf.Abs((initialAngle - transform.rotation.eulerAngles.y) % 360) / 360);
                 rigidbody.velocity = movingDir * reducedSpeed;
             }
-            else
-            {
+            else {
                 rigidbody.velocity = transform.forward * 0;
             }
         }
     } // end of Fixed-Update
-
-    /*
-     * returns true if agent is dead
-     */
-    public override bool isDead()
-    {
-        return State.Dead == currentState;
-    } // end of isdead
 
 	void changeFieldOfView(){
 		float angle = GetComponent<FieldOfView>().viewAngle;
@@ -138,7 +166,7 @@ public class PredatorScript : Controller {
 				if (g != null) {
 					hunger += 400;
 					GetComponent<FieldOfView> ().visibleTargets.Clear ();
-					Destroy (g);	
+                    g.GetComponent<PreyScript>().damage();
 				}
 			}
 		}
@@ -151,7 +179,7 @@ public class PredatorScript : Controller {
     void moveForward() {
         agent.enabled = false;
         movingDir = transform.forward;
-        initialAngle = transform.rotation.y;
+        initialAngle = transform.rotation.eulerAngles.y;
         moving = true;
     }
 
@@ -161,7 +189,7 @@ public class PredatorScript : Controller {
     void moveBackward() {
         agent.enabled = false;
         movingDir = -transform.forward;
-        initialAngle = Quaternion.Inverse(transform.rotation).y;
+        initialAngle = (transform.rotation.eulerAngles.y + 180) % 360;
         moving = true;
     }
 
@@ -195,17 +223,25 @@ public class PredatorScript : Controller {
     void lookAtSound(){
 		if (soundList.Count > 0) {
 			Vector3 origin = soundList[0];
-			rotation.lookAtObject(origin);
-			//agent.enabled = true;
-			//destination = origin;
-			//agent.SetDestination (origin);
+			rotation.lookAtObject(origin,true);
+			/*agent.enabled = true;
+			destination = origin;
+			agent.SetDestination (origin); */
 		}
 	}
+
+    void goToSound() {
+        if(soundList.Count > 0) {
+            Vector3 origin = soundList[0];
+            agent.SetDestination(origin);
+            destination = origin;
+        }
+    }
 
 	/*
 	 * Selects the next action
 	 */
-	void selectAction(int a){
+	public override void selectAction(int a){
         Action action = intToAction(a);
 		currentAction = action;
 		switch (currentAction) {
@@ -225,8 +261,11 @@ public class PredatorScript : Controller {
 			stop ();
 			break;
 		case Action.FollowObject:
-			//agent follow
+            moveToTarget();
 			break;
+        case Action.Eat:
+            eat();
+            break;
 		case Action.Idle:
 			Idle ();
 			break;
@@ -243,7 +282,7 @@ public class PredatorScript : Controller {
 	 * returns a boolean array with all the available actions of the object.
 	 * the actions are selected according to the object's state and other parameters.
 	 */
-	public bool[] getAvailableActions(int s){
+	public override bool[] getAvailableActions(int s){
 		State state = intToState (s);
 		bool[] availableActions = new bool[actionSize];
 		Action[] chooseActions = null;
@@ -266,6 +305,8 @@ public class PredatorScript : Controller {
 				Action.Attack,
 				Action.Idle
 			};
+                if (GetComponent<FieldOfView>().visibleTargets.Count > 0)
+                    availableActions[(int)Action.FollowObject] = true;
 			break;
 		case State.Attack:
 			chooseActions = new Action[]{
@@ -277,7 +318,9 @@ public class PredatorScript : Controller {
 				Action.Seek, 
 				Action.Idle
 			};
-			if (eatPreyList.Count > 0)
+                if (GetComponent<FieldOfView>().visibleTargets.Count > 0)
+                    availableActions[(int)Action.FollowObject] = true;
+                if (eatPreyList.Count > 0)
 				availableActions [(int)Action.Eat] = true;
 			break;
 		case State.Dead:
@@ -295,6 +338,24 @@ public class PredatorScript : Controller {
 		}
 		return availableActions;
 	} // end of getAvailableActions 
+
+    /*
+     * generate an array with states
+     */
+    int[] generateStates() {
+        int[] stateArray = new int[9];
+        stateArray[0] = (int)currentState; // current state
+        stateArray[1] = (int)System.Convert.ToSingle(moving); // is it moving
+        stateArray[2] = (int)System.Convert.ToSingle(agent.enabled);
+        stateArray[3] = (int)System.Convert.ToSingle(soundList.Count > 0); // length of soundlist
+        stateArray[4] = (int)System.Convert.ToSingle(GetComponent<FieldOfView>().visibleTargets.Count > 0); // size of visible targets
+        stateArray[5] = (int)System.Convert.ToSingle(GetComponent<FieldOfView>().visibleEadibles.Count > 0); // size of visible targets
+        stateArray[6] = (int)System.Convert.ToSingle(eadibleList.Count > 0); // contact with eadibles
+        stateArray[7] = staminaLevel(); // stamina level
+        stateArray[8] = hungerLevel(); // hunger level
+
+        return stateArray;
+    } // end of generateStates
 
 	/*
 	 * changes the state to Idle
@@ -382,5 +443,85 @@ public class PredatorScript : Controller {
         }
         return Action.None;
     } // end of intToAction
+
+    PredatorScript.Action keyboardActions(bool[] availableActions) {
+        Action action = Action.None;
+        ////// ACTIONS CONTROLLED BY THE KEYBOARD ////// 
+        if (Input.GetKey(KeyCode.E) && availableActions[(int)Action.Eat]) {
+            Debug.Log("Prey Eating!");
+            //eat ();
+            action = Action.Eat;
+        }
+
+        if (Input.GetKey(KeyCode.A) && availableActions[(int)Action.Move]) {
+            //rigidbody.velocity = transform.forward * moveSpeed;
+            //move();
+            action = Action.Move;
+        }
+        if (Input.GetKey(KeyCode.Z) && availableActions[(int)Action.FollowObject]) {
+            action = Action.FollowObject;
+        }
+        if (Input.GetKey(KeyCode.D) && availableActions[(int)Action.Stop]) {
+            //rigidbody.velocity = transform.forward * 0;
+            //stop();
+            action = Action.Stop;
+        }
+        if (Input.GetKey(KeyCode.X) && availableActions[(int)Action.LookAtObject]) {
+            action = Action.LookAtObject;
+        }
+
+        //switch state test
+        if (Input.GetKey(KeyCode.Alpha1) && availableActions[(int)Action.Idle]) { // Idle
+                                                                                  //Idle ();
+            action = Action.Idle;
+        }
+        if (Input.GetKey(KeyCode.Alpha2) && availableActions[(int)Action.Seek]) { // Seek
+                                                                                  //Seek ();
+            action = Action.Seek;
+        }
+        if (Input.GetKey(KeyCode.Alpha3) && availableActions[(int)Action.Attack]) { // Flee
+                                                                                  //Flee ();
+            action = Action.Attack;
+        }
+
+        if (Input.GetKey(KeyCode.Q) && availableActions[(int)Action.RotateLeft]) { // 1 on keyboard to rotate left
+                                                                                   //rotation.RotateLeft (); // method will be called by controller
+            action = Action.RotateLeft;
+        }
+        if (Input.GetKey(KeyCode.W) && availableActions[(int)Action.RotateRight]) { // 2 on keyboard to rotate right
+                                                                                    //rotation.RotateRight (); // method will be called by controller
+            action = Action.RotateRight;
+        }
+        return action;
+    }// end of keyboard
+
+    /*
+     * follows waypoints and flees to the sight of the enemy
+     */
+    void dummyBehaviour() {
+        if (eatPreyList.Count > 0)
+            eat();
+        else if (GetComponent<FieldOfView>().visibleTargets.Count > 0) {
+            Transform target = (Transform)GetComponent<FieldOfView>().visibleTargets[0].transform;
+            Vector3 targetPosition = target.position;
+            agent.speed = AttackMoveSpeed;
+            agent.destination = targetPosition;
+        }
+        if (!agent.pathPending && agent.remainingDistance < 0.5f)
+            GotoNextPoint();
+    } // end of dummy behaviour
+
+    void GotoNextPoint() {
+        // Returns if no points have been set up
+        if (points.Length == 0)
+            return;
+
+        // Set the agent to go to the currently selected destination.
+        agent.destination = points[destPoint].position;
+
+        // Choose the next point in the array as the destination,
+        // cycling to the start if necessary.
+        destPoint = (destPoint + 1) % points.Length;
+    } // end of gotonextpoint
 
 } // end of PredatorScript

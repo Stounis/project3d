@@ -18,7 +18,8 @@ public class FieldOfView : MonoBehaviour {
 	public List<Transform> visibleEadibles = new List<Transform> ();
     public List<Vector3> visibleWalls = new List<Vector3>(); // test
 
-    public float minDstToWall; // test
+    public float minDstToWall; // distance between the controller and a wall
+    public float minDstToTarget; // distance between the controller and the target
 
 	public float meshResolution;
 	public int edgeResolveIterations;
@@ -35,6 +36,7 @@ public class FieldOfView : MonoBehaviour {
 		StartCoroutine ("FindTargetsWithDelay", .2f);
 
         minDstToWall = viewRadius;
+        minDstToTarget = viewRadius;
     }
 
 
@@ -60,7 +62,10 @@ public class FieldOfView : MonoBehaviour {
 			if (Vector3.Angle (transform.forward, dirToTarget) < viewAngle / 2) {
 				float dstToTarget = Vector3.Distance (transform.position, target.position);
 				if (!Physics.Raycast (transform.position, dirToTarget, dstToTarget, obstacleMask)) {
-					visibleTargets.Add (target);
+                    if (!target.GetComponent<Controller>().isDead()) {
+                        visibleTargets.Add(target);
+                        minDstToTarget = Vector3.Distance(transform.position, target.position);
+                    }
 				}
 			}
 		}

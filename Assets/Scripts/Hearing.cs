@@ -17,9 +17,10 @@ public class Hearing : MonoBehaviour {
 		transform.rotation = this.GetComponentInParent<Transform> ().rotation;
 
 		bool moving = GetComponentInParent<Controller> ().moving;
-		float speed = GetComponentInParent<Controller> ().reducedSpeed;
+        bool agent = GetComponentInParent<Controller>().agentEnabled();
+        float speed = GetComponentInParent<Controller> ().reducedSpeed;
 
-		if (moving && speed > 2f) {
+        if ((moving || agent) && speed > 2f) {
 			Controller c = GetComponentInParent<Controller> ();
 			collider.radius = hearingRadius/(c.moveSpeed - c.moveSpeed/speed);
 		} else {
@@ -34,7 +35,7 @@ public class Hearing : MonoBehaviour {
 		if (other.gameObject.tag == "Sound" && !other.GetComponent<Sound>().silent) {
 			Controller c = this.GetComponentInParent<Controller> ();
 
-			Debug.Log (this.GetComponentInParent<Transform>().parent.tag + " heared " + other.GetComponentInParent<Transform>().parent.tag);
+			//Debug.Log (this.GetComponentInParent<Transform>().parent.tag + " heared " + other.GetComponentInParent<Transform>().parent.tag);
 		
 			Vector3 point = (other.gameObject.transform.position + transform.position) / 2;
 			c.addSoundObject (point);
@@ -49,7 +50,7 @@ public class Hearing : MonoBehaviour {
 		if (other.gameObject.tag == "Sound" && !other.GetComponent<Sound>().silent) {
 			Controller c = this.GetComponentInParent<Controller> ();
 
-			Debug.Log (this.GetComponentInParent<Transform>().parent.tag + " heared " + other.GetComponentInParent<Transform>().parent.tag);
+			//Debug.Log (this.GetComponentInParent<Transform>().parent.tag + " heared " + other.GetComponentInParent<Transform>().parent.tag);
 
 			Vector3 point = (other.gameObject.transform.position + transform.position) / 2;
 			c.addSoundObject (point);
