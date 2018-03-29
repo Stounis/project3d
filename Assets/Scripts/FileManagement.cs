@@ -21,7 +21,7 @@ public class FileManagement {
         //string path = "Assets/Results/test.txt";
         //string mtest = "0 1 2 3 4 12\r\n1 5 1 2 0 1\r\n2 12 15 1"; // \r\n for new line ***
 
-        int filesNumber = Directory.GetFiles(directory , "*.txt").Length;
+        int filesNumber = Directory.GetFiles(directory, "*.txt").Length;
         //Debug.Log("number of files in " + directory + " " + filesNumber);
 
         string path = directory + filename + filesNumber + ".txt"; // Assets/Results/test.txt
@@ -31,7 +31,7 @@ public class FileManagement {
         writer.Close();
 
         //Debug.Log(message);
-    } // end of writeFile
+    } // end of writeFile 
 
     /*
      * reads the q table from a file
@@ -40,13 +40,14 @@ public class FileManagement {
 
         char delimeter = ' ';
 
-        int filenum = Directory.GetFiles(directoryPath, "*.txt").Length-1;
+        int filenum = Directory.GetFiles(directoryPath, "*.txt").Length - 1;
         string path = directoryPath + fileName + filenum + ".txt";
-        StreamReader reader = new StreamReader(path);
+
         ArrayList list = new ArrayList();
 
         if (filenum >= 0) { // check if file exist
             // read file
+            StreamReader reader = new StreamReader(path);
             while (reader.Peek() > 0) {
                 string[] line = reader.ReadLine().Split(delimeter);
                 int[] input = new int[line.Length];
@@ -69,11 +70,12 @@ public class FileManagement {
 
         int filenum = Directory.GetFiles(directoryPath, "*.txt").Length - 1;
         string path = directoryPath + fileName + filenum + ".txt";
-        StreamReader reader = new StreamReader(path);
+
         ArrayList list = new ArrayList();
 
         if (filenum >= 0) {
             // read file
+            StreamReader reader = new StreamReader(path);
             while (reader.Peek() > 0) {
                 string[] line = reader.ReadLine().Split(delimeter);
                 float[] input = new float[line.Length];

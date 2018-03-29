@@ -15,10 +15,11 @@ public class Controller : MonoBehaviour {
 
     public float moveSpeed = 6;
     protected float availableSpeed;
-	public float weight = 50;
-	public float stamina = 100; // used for walk, run etc
-	public float hunger = 50;
-	public string id;
+    public float weight = 50;
+    public float stamina = 50; // used for walk, run etc
+    public float maxStamina = 50;
+    public float hunger = 50;
+    public string id;
     public bool dead = false;
 
     //State and Action sizes
@@ -30,38 +31,39 @@ public class Controller : MonoBehaviour {
     public StateArray stateArray;
 
     public bool moving = false; // true if the controller is moving
-	public float reducedSpeed; // the speed that the controller is moving after being modified according to state rotation etc
+    public float reducedSpeed; // the speed that the controller is moving after being modified according to state rotation etc
 
-	public ArrayList eadibleList = new ArrayList(); // list that holds all the eadible objects that the controller collides with
-	public List<Vector3> soundList =  new List<Vector3>(); // holds vector3 points when the sound capsule collides with the controller
+    public ArrayList eadibleList = new ArrayList(); // list that holds all the eadible objects that the controller collides with
+    public List<Vector3> soundList = new List<Vector3>(); // holds vector3 points when the sound capsule collides with the controller
 
-	protected Rigidbody rigidbody;
-	protected Camera viewCamera;
-	public Vector3 velocity;
-	protected NavMeshAgent agent;
+    protected Rigidbody rigidbody;
+    protected Camera viewCamera;
+    public Vector3 velocity;
+    protected NavMeshAgent agent;
 
-	// Field Of View Variables
-	protected float fowSpotedAngle = 30;
-	protected float fowSpotedRadius = 8;     
-	protected float fowSeekAngle = 45;
-	protected float fowSeekRadius = 8;
-	protected float fowTransitionAngle = 0.3f;
-	protected float fowTransitionRadius = 0.01f;
+    // Field Of View Variables
+    protected float fowSpotedAngle = 30;
+    protected float fowSpotedRadius = 8;
+    protected float fowSeekAngle = 45;
+    protected float fowSeekRadius = 8;
+    protected float fowTransitionAngle = 0.3f;
+    protected float fowTransitionRadius = 0.01f;
 
+    public bool wallCollision = false;
 
-	/*
+    /*
 	 * changes the field of view of the controller according to the state
 	 * >>ABSTRACT<<
 	 */
-	protected virtual void changeFieldOfView(){}
-		
-	/*
+    protected virtual void changeFieldOfView() { }
+
+    /*
 	 * returns the string id of the object
 	 */
-	public string getId(){
-		return id;
-	}
-    
+    public string getId() {
+        return id;
+    }
+
     public bool isDead() {
         return dead;
     }
@@ -84,62 +86,62 @@ public class Controller : MonoBehaviour {
         stateArray = array;
     }
 
-	/*
+    /*
 	 * controller rests to regenerate stamina
-	 */ 
-	protected void rest(float s){
-		if (stamina + s <= 100) {
-			stamina += s;
-		}
-	}
+	 */
+    protected void rest(float s) {
+        if (stamina + s <= maxStamina) {
+            stamina += s;
+        }
+    }
 
-	/*
+    /*
 	 * controller consumes stamina s from its stamina level
 	 */
-	protected void consumeStamina(float s){
-		if (stamina - s > 0) {
-			stamina -= s;
-		}
-	}
+    protected void consumeStamina(float s) {
+        if (stamina - s > 0) {
+            stamina -= s;
+        }
+    }
 
-	/*
+    /*
 	 * adds the eadible object that collided with the controller in the list
 	 */
-	public void addEadibleObject(GameObject g){
-		eadibleList.Add (g);
-	}
+    public void addEadibleObject(GameObject g) {
+        eadibleList.Add(g);
+    }
 
-	/*
+    /*
 	 * removes the eadible object when the controller exits the collision with it
 	 */
-	public void removeEadibleObject(GameObject g){
-		for (int i = 0; i < eadibleList.Count; i++) {
-			if (g == eadibleList [i]) {
-				eadibleList.RemoveAt(i);
-			}
-		}
-	} // end of removeEadibleObject
+    public void removeEadibleObject(GameObject g) {
+        for (int i = 0; i < eadibleList.Count; i++) {
+            if (g == eadibleList[i]) {
+                eadibleList.RemoveAt(i);
+            }
+        }
+    } // end of removeEadibleObject
 
-	/*
+    /*
 	 * adds the object that its sound has collided with this to the sound list
 	 */
-	public void addSoundObject(Vector3 soundOrigin) {
-		if (soundList.Count > 0)
-			soundList.RemoveAt (0);
-		soundList.Add (soundOrigin);
-	} // end of addSoundObject
+    public void addSoundObject(Vector3 soundOrigin) {
+        if (soundList.Count > 0)
+            soundList.RemoveAt(0);
+        soundList.Add(soundOrigin);
+    } // end of addSoundObject
 
-	/*
+    /*
 	 * returns a boolean array with the available actions according to the state
 	 * >>ABSTRACT<<
 	 */
-	public virtual bool[] getAvailableActions(int s){ return new bool[0];}
+    public virtual bool[] getAvailableActions(int s) { return new bool[0]; }
 
-	/*
+    /*
 	 * selects the next action of the object
 	 * >>ABSTRACT<<
 	 */
-	public virtual void selectAction(int action){}
+    public virtual void selectAction(int action) { }
 
     /*
      * returns a reward according to state and action
@@ -151,16 +153,24 @@ public class Controller : MonoBehaviour {
      * test of collision with wall to stop controller
      */
     protected void OnCollisionEnter(Collision collision) {
-        if(collision.gameObject.tag == "Obstacle") {
+        if (collision.gameObject.tag == "Obstacle") {
             moving = false;
             rigidbody.velocity = Vector3.zero;
+            wallCollision = true;
         }
     } // end of OnCollisionEnter
 
     protected void OnCollisionStay(Collision collision) {
-        if(collision.gameObject.tag == "Obstacle") {
+        if (collision.gameObject.tag == "Obstacle") {
             moving = false;
             rigidbody.velocity = Vector3.zero;
+            wallCollision = true;
+        }
+    }
+
+    protected void OnCollisionExit(Collision collision) {
+        if(collision.gameObject.tag == "Obstacle") {
+            wallCollision = false;
         }
     }
 
@@ -193,8 +203,63 @@ public class Controller : MonoBehaviour {
             return 2; //south
         else if (angle > 225 && angle <= 315)
             return 3; // west
-        else      
+        else
             return 0; // north
     }
+
+    /*
+     * the distance between the controller and the sound origin
+     */
+    protected float soundDistance() {
+        float dst = -1;
+
+        if (soundList.Count > 0) {
+            dst = Vector3.Distance(transform.position, soundList[0]);
+        }
+
+        return dst;
+    } // end of soundDistance
+
+    /*
+     * the distance between the controller and the target
+     */
+    protected float targetDistance() {
+        float dst = -1;
+
+        if (GetComponent<FieldOfView>().visibleTargets.Count > 0) {
+            Transform target = GetComponent<FieldOfView>().visibleTargets[0];
+            if (target != null) {
+                dst = Vector3.Distance(transform.position, target.position);
+            }
+        }
+
+        return dst;
+    } // end of targetDistance
+
+    /*
+     * the distance between the controller and the closest eadible
+     */
+    protected float eadibleDistance() {
+        float dst = -1;
+
+        if (GetComponent<FieldOfView>().visibleEadibles.Count > 0) {
+            Transform eadible = GetComponent<FieldOfView>().visibleEadibles[0];
+            if (eadible != null) {
+                dst = Vector3.Distance(transform.position, eadible.position);
+            }
+            if (GetComponent<FieldOfView>().visibleEadibles.Count > 1) {
+                for(int i=1; i < GetComponent<FieldOfView>().visibleEadibles.Count; i++) {
+                    Transform nextEadible = GetComponent<FieldOfView>().visibleEadibles[i];
+                    if (nextEadible != null) {
+                        if (Vector3.Distance(transform.position, nextEadible.position) < dst) {
+                            dst = Vector3.Distance(transform.position, nextEadible.position);
+                        }
+                    }
+                }
+            }
+        }
+
+        return dst;
+    } // end of eadible Distance
 
 } // end of Controller Class

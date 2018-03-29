@@ -6,8 +6,9 @@ public class QLearning {
 
     Controller controller;
 
-    float alpha = 0.1f; // alpha : Learning rate
-    float gamma = 0.9f;// gamma : 0 looks near future, 1 looks distant future
+    float alpha = 0.3f; // alpha : Learning rate
+    float gamma = 0.8f; // gamma : 0 looks near future, 1 looks distant future
+    float epsilon = 0.1f; // epsilon : exploration of actions
 
     // list of states 
     // list of actions
@@ -19,8 +20,8 @@ public class QLearning {
     public bool bestaction = false;
 
     ArrayList memory; // stores previous state/actions to update the q table
-    int maxMemory = 60; // max number of state/actions stored in memory
-    int memoryRewardRed = 20;
+    int maxMemory = 5; // max number of state/actions stored in memory
+    int memoryRewardRed = 1;
 
     ArrayList rewardList = new ArrayList();
     int totalReward = 0;
@@ -46,32 +47,35 @@ public class QLearning {
 
         // Q(s,a) = Q(s,a) + a * (r(s,a) + g * maxQ(s') - Q(s,a)) 
         float q = getQvalue(oldState.getId(), action); //float q = Q[state,action];
-        float maxq = maxQ(newState.getId()); //float maxQ = maxQ (state);
+        float maxq = maxQ(newState); //float maxQ = maxQ (state);
         int r = controller.reward(newState.getState(), action);
 
-        float value = q + alpha * (r + gamma * maxq - q);//float value = q + alpha * (r + gamma * maxQ - q);
-
+        //float value = q + alpha * (r + gamma * maxq - q);//float value = q + alpha * (r + gamma * maxQ - q);
+        float value = q + alpha * (r + gamma * 1 - q);
+        Debug.Log("q: " + q + " maxq: " + maxq);
+        Debug.Log("reward: " + r + " value: " + value);
         updateQvalue(oldState.getId(), action, value); // q[oldstate,action] = value
 
         addMemory(oldState.getId(), action);
         maintainMemory();
 
         totalReward += r;
-
         // repeat q process for memory
-        if (memory.Count > 1 && r != 0) {
+        /*if (memory.Count > 1 && (Mathf.Abs(r)>10)) {
             for (int i = memory.Count - 2; i > 0; i--) {
-                if (r-memoryRewardRed > 0) {
+                if (r - memoryRewardRed > 0) {
                     r -= memoryRewardRed;
-                } else if (r+memoryRewardRed < 0) {
+                }
+                else if (r + memoryRewardRed < 0) {
                     r += memoryRewardRed;
                 }
                 else {
-                    break;
-                }
-                //r = 0; //test
+                    r = 0;
+                    return;
+                } 
+                //r = 0; //test 
 
-                int[] newestMem = (int[])memory[i+1]; // new memory
+                int[] newestMem = (int[])memory[i + 1]; // new memory
                 int newMemoryState = newestMem[0]; // new state
 
                 int[] oldestMem = (int[])memory[i]; // old memory
@@ -85,7 +89,7 @@ public class QLearning {
 
                 updateQvalue(oldMemoryState, oldMemoryAction, memoryValue); // q[oldstate,action] = value
             }
-        }
+        } */
     } // end of rl
 
     void calculateQ() {
@@ -112,7 +116,7 @@ public class QLearning {
     /*
      * resets the memory arraylist
      */
-     public void resetMemory() {
+    public void resetMemory() {
         memory.Clear();
     }
 
@@ -131,18 +135,18 @@ public class QLearning {
      * finish run by storing the totalreward of the run in the reward list
      * and reseting the total reward to 0
      */
-     public void saveReward() {
+    public void saveReward() {
         rewardList.Add(totalReward);
         totalReward = 0;
-     }
+    }
 
     /*
      * prints the reward list as a string
      */
-     public string printRewardList() {
+    public string printRewardList() {
         string m = "";
 
-        for(int i=0; i<rewardList.Count; i++) {
+        for (int i = 0; i < rewardList.Count; i++) {
             if (i != rewardList.Count - 1)
                 m = m + rewardList[i] + " ";
             else
@@ -165,7 +169,7 @@ public class QLearning {
     /*
      * returns the action with the highest q value
      */
-    int bestAction(ObjectState s) {
+    /*int bestAction(ObjectState s) {
 
         updateStates();
 
@@ -174,26 +178,72 @@ public class QLearning {
 
         bool[] possibleActions = controller.getAvailableActions(s.getState());
         float[] Qactions = (float[])Q[s.getId()];
-        for (int i = 0; i < possibleActions.Length; i++)
-        {
-            if (possibleActions[i])
-            {
+        for (int i = 0; i < possibleActions.Length; i++) {
+            if (possibleActions[i]) {
                 float value = Qactions[i];
-                if (value >= maxValue) {
+                if (value > maxValue) { // > or >=
                     maxValue = value;
                     action = i;
                 }
             }
         }
         return action;
-    } // end of bestAction
+    } // end of bestAction */
+
+    /*
+     * best action test
+     */
+     public int bestAction(ObjectState s) {
+        int action = 0;
+        float maxValue = float.MinValue;
+
+        bool[] possibleActions = controller.getAvailableActions(s.getState());
+        List<int> actions = new List<int>();
+        for(int i=0; i<possibleActions.Length; i++) {
+            if (possibleActions[i])
+                actions.Add(i);
+        }
+        float[] Qactions = (float[])Q[s.getId()];
+
+        // add an element of randomness for exploration
+        if (Random.Range(0.0f, 1.0f) < epsilon) {
+            int random = Random.Range(0, actions.Count);
+            action = actions[random];
+        } else {
+            // get a list of all the max q. 
+            // in case that the max q is shared with more than one action
+            List<int> bestActions = new List<int>();
+            foreach (int a in actions) {
+                float tempValue = Qactions[a];
+                if (tempValue > maxValue) {
+                    maxValue = tempValue;
+                    bestActions.Clear();
+                    bestActions.Add(a);
+                }
+                else if (tempValue == maxValue) {
+                    bestActions.Add(a);
+                }
+            }
+
+            // choose a random action from the best ones
+            if (bestActions.Count > 1) {
+                int random = Random.Range(0, bestActions.Count);
+                action = bestActions[random];
+            }
+            else if(bestActions.Count == 1){
+                action = bestActions[0];
+            }
+        }    
+
+        return action;
+    }// end of ba
 
     int randomAction(ObjectState s) {
         updateStates();
         int state = 0;
         bool[] possibleActions = controller.getAvailableActions(s.getState());
 
-        for (int i =0; i<possibleActions.Length; i++) {
+        for (int i = 0; i < possibleActions.Length; i++) {
             int random = Random.Range(0, possibleActions.Length - 1);
             if (possibleActions[random]) {
                 state = random;
@@ -236,11 +286,11 @@ public class QLearning {
     /*
 	 * returns the maximum Q value From the q table according to the next state
 	*/
-    float maxQ(int nextState) {
+    float maxQ(ObjectState nextState) {
         float maxValue = float.MinValue;
 
-        bool[] possibleActions = controller.getAvailableActions(nextState);
-        float[] Qactions = (float[])Q[nextState];
+        bool[] possibleActions = controller.getAvailableActions(nextState.getState());
+        float[] Qactions = (float[])Q[nextState.getId()];
         for (int i = 0; i < possibleActions.Length; i++) {
             if (possibleActions[i]) {
                 float value = Qactions[i];
@@ -248,6 +298,13 @@ public class QLearning {
                     maxValue = value;
             }
         }
+
+       /* bool[] possibleActions = controller.getAvailableActions(nextState.getState());
+        float[] Qactions = (float[])Q[nextState.getId()];
+        if (possibleActions.Length > 0) {
+            maxValue= 
+        }*/
+
         return maxValue;
     } // end of maxQ
 
@@ -271,7 +328,7 @@ public class QLearning {
     public void loadQTable(ArrayList list) {
         if (Q.Count > 0)
             return;
-        for (int i=0; i<list.Count; i++) {
+        for (int i = 0; i < list.Count; i++) {
             float[] row = (float[])list[i];
             Q.Add(row);
         }
@@ -282,7 +339,7 @@ public class QLearning {
      */
     public string printQTable() {
         string message = "";
-        foreach (float[] row in Q) {            
+        foreach (float[] row in Q) {
             for (int i = 0; i < row.Length; i++) {
                 if (i == 0)
                     message = message + row[i];
